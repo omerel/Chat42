@@ -2,9 +2,20 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <item
+        android:id="@+id/action_mode"
+        android:title="@string/action_icon"
+        android:icon="@drawable/ic_bluetooth_black_24dp"
+        app:showAsAction="always"/>
+
     <item android:id="@+id/action_settings"
         android:title="@string/action_settings"
         app:showAsAction="never"/>
+
+    <item android:id="@+id/action_chat_history"
+        android:title="@string/chat_history"
+        app:showAsAction="never"/>
+
     <item
         android:id="@+id/action_logout"
         android:title="@string/action_logout"
