@@ -10,7 +10,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Message;
-import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -41,6 +40,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     // Constants that indicate the current connection state
     private final static int REQUEST_ENABLE_BT = 1; // request to enable bluetooth
+    // TODO update to constant
     public static final int STATE_NONE = 0;       // we're doing nothing
     public static final int STATE_LISTEN = 1;     // now listening for incoming connections
     public static final int STATE_CONNECTING = 2; // now initiating an outgoing connection
@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private  ListView mDevicesList;
 
     // Member fields
+    private BluetoothConnectionManager mBluetoothConnectionManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothSocket mBluetoothSocket;
     private BluetoothDevice mBluetoothConnectedDevice;
@@ -99,6 +100,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Initilaize the bluetooth connection
      */
     private void bluetoothInit() {
+
+        //TODO check if the device is already connected to somebody else
+        //TODO add option to disconnect
+        //TODO add status line in the bottom screen
 
         mBluetoothConnectedDevice = null;
 
@@ -240,8 +245,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // Inflate the menu; this adds items to the action bar if it is present.
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu, menu);
-
-
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -298,7 +301,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
             startActivity(discoverableIntent);
-//TODO PROBLEM HERE
             mServersideThread.start();
         }
     }
@@ -393,7 +395,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     // Send message back to the Activity for a new Socket received
                     mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
-
                 }
             }
         }
@@ -438,8 +439,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     mBluetoothAdapter.cancelDiscovery();
 
                     // close discoverable
-                    if (mDiscoverable.isChecked())
-                        discoverable();
+                    if (mDiscoverable.isChecked()){
+                        turnOffDiscoverableButton();
+                    }
 
                     // close the server side socket
                     if (mServersideThread.isAlive())
@@ -463,5 +465,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             }
         };
+
+    private void turnOffDiscoverableButton() {
+
+        mServersideThread.cancel();
+        mServersideThread = new AcceptThread();
+        mDiscoverable.setChecked(false);
+
+        // turn off the discoverable option
+        Intent discoverableIntent = new
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
+        startActivity(discoverableIntent);
+
+
+    }
 
 }
