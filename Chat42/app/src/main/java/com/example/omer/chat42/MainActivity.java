@@ -9,7 +9,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -25,18 +27,13 @@ import android.widget.Toast;
 import com.example.omer.chat42.BluetoothService.MyBinder;
 import java.util.ArrayList;
 
-
 /**
  * This activity does all the work of setting up UI and connecting to other user
  **/
 public class MainActivity extends AppCompatActivity implements View.OnClickListener,Constants {
 
-
-    // Layout's views
-    private  Toolbar mMyToolbar;
     private  View mDistanceLayout;
     private  View mDiscoverableLayout;
-    private  Button mSearchButton;
     private static Switch mDiscoverable;
     private  ListView mDevicesList;
 
@@ -126,7 +123,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if(mServiceBound) {
             unregisterReceiver(mReceiver);
             mServiceBound = false;
-            mBluetoothService.stopSelf();
         }
     }
 
@@ -174,12 +170,58 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    /** Make the action button appear in old devices **/
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
     /**
      * Disconnect from the conncected device
      */
     //TODO add option to disconnect from the device
     private void disconnectFromDevice(){
 
+    }
+
+
+    /**
+     * General initilaize of the activity
+     */
+    private void generalInit() {
+
+        // setup toolbar
+        Toolbar mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+        setSupportActionBar(mMyToolbar);
+
+        // Bind layout's view to class
+        mDistanceLayout = (View)findViewById(R.id.layout_distance);
+        mDiscoverableLayout = (View)findViewById(R.id.layout_discoverable);
+        Button mSearchButton = (Button) findViewById(R.id.button_search);
+        mDiscoverable = (Switch)findViewById(R.id.switch_discoverable);
+        mDevicesList = (ListView)findViewById(R.id.listview_available_devices);
+
+        // bind device list
+        mArrayDevices = new ArrayList<>();
+        mArrayAdapter = new ArrayAdapter<>(this,R.layout.item_device);
+        mDevicesList.setAdapter(mArrayAdapter);
+
+        // Set on click listener
+        mSearchButton.setOnClickListener(this);
+        mDiscoverable.setOnClickListener(this);
+
+        mDevicesList.setOnItemClickListener(new AdapterView.OnItemClickListener()
+        {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view,
+                                    int position, long id) {
+                Toast.makeText(MainActivity.this,"Connecting\n"+mArrayDevices.get(position).getName(), Toast.LENGTH_SHORT).show();
+                mBluetoothService.connectToDevice(mArrayDevices.get(position));
+            }
+        });
     }
 
     /**
@@ -210,6 +252,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         registerReceiver(mReceiver,mIntentFilter);
+
+        // Set name for user
+        if (mServiceBound){
+            mBluetoothService.setName(mUserName);
+        }
     }
 
     /**
@@ -239,26 +286,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         switch(state) {
                             case BluetoothAdapter.STATE_OFF:
                                 mState = STATE_OFF;
-                                Toast.makeText(getApplicationContext(),"state: STATE_OFF",
+                                Toast.makeText(getApplicationContext(),"Bluetooth: STATE_OFF",
                                         Toast.LENGTH_LONG).show();
                                 break;
                             case BluetoothAdapter.STATE_TURNING_OFF:
                                 mState = STATE_TURNING_OFF;
-                                Toast.makeText(getApplicationContext(),"state: STATE_TURNING_OFF",
+                                Toast.makeText(getApplicationContext(),"Bluetooth: STATE_TURNING_OFF",
                                         Toast.LENGTH_LONG).show();
                                 break;
                             case BluetoothAdapter.STATE_ON:
                                 mState = STATE_ON;
-                                Toast.makeText(getApplicationContext(),"state: STATE_ON",
+                                Toast.makeText(getApplicationContext(),"Bluetooth: STATE_ON",
                                         Toast.LENGTH_LONG).show();
                                 break;
                             case BluetoothAdapter.STATE_TURNING_ON:
                                 mState = STATE_TURNING_ON;
-                                Toast.makeText(getApplicationContext(),"state: STATE_TURNING_ON",
+                                Toast.makeText(getApplicationContext(),"Bluetooth: STATE_TURNING_ON",
                                         Toast.LENGTH_LONG).show();
                                 break;
                         }
                         break;
+
                     // When bluetooth mode changed
                     case BluetoothAdapter.ACTION_SCAN_MODE_CHANGED:
                         int mode = intent.getIntExtra(BluetoothAdapter.EXTRA_SCAN_MODE, BluetoothAdapter.ERROR);
@@ -275,10 +323,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 break;
                         }
                         break;
+
                     case BluetoothDevice.ACTION_ACL_CONNECTED:
                         mConnectionStatus = ACTION_ACL_CONNECTED;
                         Toast.makeText(getApplicationContext(),"CONNECTED",
                                 Toast.LENGTH_LONG).show();
+
+                        // Send message back to the Activity handler for a new Socket received
+                        mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
                         break;
                     case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                         mConnectionStatus = ACTION_ACL_DISCONNECTED;
@@ -286,11 +338,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 Toast.LENGTH_LONG).show();
                         break;
                 }
-
-
             }
         };
-
     }
 
     /**
@@ -298,10 +347,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void enableBluetooth() {
 
-        //if (!mBluetoothAdapter.isEnabled()) {
-        if (!mBluetoothService.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        if(mServiceBound){
+            if (!mBluetoothService.isEnabled()) {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            }
         }
     }
 
@@ -309,73 +359,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Start discover other devices and update the device list
      */
     private void startDiscoveringDevices(){
-       // if (mBluetoothAdapter.isDiscovering()) {
-        if (mBluetoothService.isDiscovering()) {
-            // the button is pressed when it discovers, so cancel the discovery
-//            mBluetoothAdapter.cancelDiscovery();
-            mBluetoothService.cancelDiscovery();
-            Toast.makeText(getApplicationContext(),"Stop discovering",
-                    Toast.LENGTH_LONG).show();
-        }
-        else {
-            mArrayAdapter.clear();  // clear adapter
-            mArrayDevices.clear();  // clear bluetooth array devices
-//            mBluetoothAdapter.startDiscovery();
-            mBluetoothService.startDiscovery();
-            Toast.makeText(getApplicationContext(),"Start discovering",
-                    Toast.LENGTH_LONG).show();
+        if(mServiceBound) {
+            if (mBluetoothService.isDiscovering()) {
+                // the button is pressed when it discovers, so cancel the discovery
+                mBluetoothService.cancelDiscovery();
+                Toast.makeText(getApplicationContext(), "Stop discovering",
+                        Toast.LENGTH_LONG).show();
+            } else {
+                mArrayAdapter.clear();  // clear adapter
+                mArrayDevices.clear();  // clear bluetooth array devices
+                mBluetoothService.startDiscovery();
+                Toast.makeText(getApplicationContext(), "Start discovering",
+                        Toast.LENGTH_LONG).show();
+            }
         }
     }
 
-
-    /**
-     *
-     */
     public static boolean isDiscoverableSwitchOn(){
         return mDiscoverable.isChecked();
     }
 
-    /**
-     * General initilaize of the activity
-     */
-    private void generalInit() {
-
-        // setup toolbar
-        mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
-        setSupportActionBar(mMyToolbar);
-
-        // Bind layout's view to class
-        mDistanceLayout = (View)findViewById(R.id.layout_distance);
-        mDiscoverableLayout = (View)findViewById(R.id.layout_discoverable);
-        mSearchButton = (Button)findViewById(R.id.button_search);
-        mDiscoverable = (Switch)findViewById(R.id.switch_discoverable);
-        mDevicesList = (ListView)findViewById(R.id.listview_available_devices);
-
-        // bind device list
-        mArrayDevices = new ArrayList<>();
-        mArrayAdapter = new ArrayAdapter<>(this,R.layout.item_device);
-        mDevicesList.setAdapter(mArrayAdapter);
-
-        // Set on click listener
-        mSearchButton.setOnClickListener(this);
-        mDiscoverable.setOnClickListener(this);
-
-        mDevicesList.setOnItemClickListener(new AdapterView.OnItemClickListener()
-        {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view,
-                                    int position, long id) {
-                Toast.makeText(MainActivity.this,"connceting\n"+mArrayDevices.get(position).getName(), Toast.LENGTH_SHORT).show();
-                mBluetoothService.connectToDevice(mArrayDevices.get(position));
-            }
-        });
-    }
 
     /**
-     * TODO Barr
+     * Change UI to WIFI mode
      */
     private void changeUIToWifiMode() {
-
         //TODO Change icon mode to wifi
         // Disable beDiscoverable function
         mDiscoverableLayout.setVisibility(View.GONE);
@@ -390,7 +398,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mDistanceLayout.setVisibility(View.GONE);
     }
 
-    /** todo is it need to be here?
+    /**
      *  The method checks if there is available internet in the device.
      *  if there is available internet bluetooth will set off
      *  otherwise the app will be on bluetooth mode.
@@ -400,237 +408,71 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return BLUETOOTH_MODE;
     }
 
-
-    /** Make the action button appear in old devices **/
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu, menu);
-        return super.onCreateOptionsMenu(menu);
-    }
-
-
     /**
      *  Make the device be beDiscoverable
      */
     private void beDiscoverable(){
-        if (!mDiscoverable.isChecked()) {
+        if (mServiceBound) {
+            if (!mDiscoverable.isChecked()) {
 
-            mBluetoothService.stopDiscoverable();
+                mBluetoothService.stopDiscoverable();
 
-            Intent discoverableIntent = new
-                    Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
-            startActivity(discoverableIntent);
+                // TODO - delete it when using API above 19
+                Intent discoverableIntent = new
+                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
+                startActivity(discoverableIntent);
 
-            Toast.makeText(getApplicationContext(),"Device is not beDiscoverable",
-                    Toast.LENGTH_LONG).show();
-        }
-        else {
+            } else {
 
-//            if (mBluetoothAdapter.isEnabled())
-            if (mBluetoothService.isEnabled())
-                enableBluetooth();
+                if (mBluetoothService.isEnabled())
+                    enableBluetooth();
 
-            Toast.makeText(getApplicationContext(),"Device is beDiscoverable",
-                    Toast.LENGTH_LONG).show();
+                Intent discoverableIntent = new
+                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+                startActivity(discoverableIntent);
+                mBluetoothService.startDiscoverable();
 
-            Intent discoverableIntent = new
-                    Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-            startActivity(discoverableIntent);
-            mBluetoothService.startDiscoverable();
-
+            }
         }
     }
-
-
-
-
-//    /**
-//     * The Handler that gets information back from the threads
-//     */
-//    private final Handler mHandler = new Handler() {
-//        @Override
-//        public void handleMessage(Message msg) {
-//            switch (msg.what) {
-//                case SOCKET_RECEIVED:
-//
-//                    // close discover devices
-////                    mBluetoothAdapter.cancelDiscovery();
-//                    mBluetoothService.cancelDiscovery();
-//                    // close beDiscoverable
-//                    if (mDiscoverable.isChecked()){
-//                        turnOffDiscoverableButton();
-//                    }
-//                    // close the server side socket
-//                    mBluetoothService.cancelThreadIfAlive();
-//
-//                    //TODO go to chatActivity and pass the relevant info
-//                    break;
-//
-//                case CONNECTING_FAILURE:
-//
-//                    // close the thread
-//                   // mConnectThread.cancel();
-//
-//                    Toast.makeText(getApplicationContext(),"Connecting failed",
-//                            Toast.LENGTH_LONG).show();
-//                    break;
-//
-//                case NO_BLUETOOTH_SUPPORT:
-//
-//                    break;
-//
-//                    }
-//
-//            }
-//        };
-
-
 
     /**
-     * Turnoff beDiscoverable Button
+     * Turnoff Discoverable Button
      */
     public static void turnOffDiscoverableButton() {
-        mBluetoothService.stopDiscoverable();
-        mDiscoverable.setChecked(false);
+            mBluetoothService.stopDiscoverable();
+            mDiscoverable.setChecked(false);
     }
 
-//    /**
-//     * Connect to Selected device
-//     * @param bluetoothDevice
-//     */
-//    private void connectToDevice(BluetoothDevice bluetoothDevice){
-//        mConnectThread = new ConnectThread(bluetoothDevice);
-//        mConnectThread.start();
-//    }
-//
-//    /**
-//     *  Destroy thread if it's alive
-//     */
-//    private void cancelThreadIfAlive(){
-//
-//        if (mServersideThread.isAlive())
-//            mServersideThread.cancel();
-//
-//        mServersideThread = new AcceptThread();
-//    }
-//
-//    /** Start beDiscoverable mode **/
-//    private void startDiscoverable() {mServersideThread.start();}
-//
-//
-//    /**
-//     * Turnoff beDiscoverable mode
-//     */
-//    private void stopDiscoverable(){
-//        mServersideThread.cancel();
-//        mServersideThread = new AcceptThread();
-//    }
+    private void goToChatActivity() {
+        Intent goToChatActivity = new Intent(this,ChatActivity.class);
+        goToChatActivity.putExtra("USER",mUserName);
+        startActivity(goToChatActivity);
+    }
 
-//
-//    /**
-//     *  Thread connecting as a server side
-//     */
-//    private class AcceptThread extends Thread {
-//        private final BluetoothServerSocket mmServerSocket;
-//
-//        public AcceptThread() {
-//            // Use a temporary object that is later assigned to mmServerSocket,
-//            // because mmServerSocket is final
-//            BluetoothServerSocket tmp = null;
-//            try {
-//                // MY_UUID is the app's UUID string, also used by the client code
-//                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord("RELAY", MY_UUID);
-//            } catch (IOException e) {
-//            }
-//            mmServerSocket = tmp;
-//        }
-//
-//        public void run() {
-//            BluetoothSocket socket = null;
-//            // Keep listening until exception occurs or a socket is returned
-//            while (true) {
-//                try {
-//                    socket = mmServerSocket.accept();
-//                } catch (IOException e) {
-//                    break;
-//                }
-//                // If a connection was accepted
-//                if (socket != null) {
-//
-//                    // update socket
-//                    mBluetoothSocket = socket;
-//
-//                    // TODO find who is the device
-//
-//                    // Send message back to the Activity for a new Socket received
-//                    mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
-//                }
-//            }
-//        }
-//        /** Will cancel the listening socket, and cause the thread to finish */
-//        public void cancel() {
-//            try {
-//                mmServerSocket.close();
-//            } catch (IOException e) { }
-//        }
-//    }
-//
-//
-//
-//    /**
-//     *  Thread connecting as a client side
-//     */
-//    private class ConnectThread extends Thread {
-//        private final BluetoothSocket mmSocket;
-//        private final BluetoothDevice mmDevice;
-//
-//        public ConnectThread(BluetoothDevice device) {
-//            // Use a temporary object that is later assigned to mmSocket,
-//            // because mmSocket is final
-//            BluetoothSocket tmp = null;
-//            mmDevice = device;
-//
-//            // Get a BluetoothSocket to connect with the given BluetoothDevice
-//            try {
-//                // MY_UUID is the app's UUID string, also used by the server code
-//                tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
-//            } catch (IOException e) { }
-//            mmSocket = tmp;
-//        }
-//
-//        public void run() {
-//            // Cancel discovery because it will slow down the connection
-//            mBluetoothAdapter.cancelDiscovery();
-//            try {
-//                // Connect the device through the socket. This will block
-//                // until it succeeds or throws an exception
-//                mmSocket.connect();
-//            } catch (IOException connectException) {
-//                // Unable to connect; close the socket and get out
-//                // Send failure message back to the  main Activity
-//                mHandler.obtainMessage(Constants.CONNECTING_FAILURE).sendToTarget();
-//                return;
-//            }
-//            // update socket
-//            mBluetoothSocket = mmSocket;
-//
-//            // update the connected device
-//            mConnectedDevice = mmDevice;
-//            // Send message back to the Activity for a new Socket received
-//            mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
-//        }
-//
-//        /** Will cancel an in-progress connection, and close the socket */
-//        public void cancel() {
-//            try {
-//                mmSocket.close();
-//            } catch (IOException e) { }
-//        }
-//
-//    }
+    /**
+     * The Handler that gets information back from the threads
+     */
+    public final Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case SOCKET_RECEIVED:
+                    // close discover devices
+                    mBluetoothService.cancelDiscovery();
+                    // close discoverable
+                    if (MainActivity.isDiscoverableSwitchOn()){
+                        MainActivity.turnOffDiscoverableButton();
+                    }
+                    // close the server side socket
+                    mBluetoothService.cancelThreadIfAlive();
 
+                    // go to chat activity
+                    goToChatActivity();
+                    break;
+            }
+        }
+    };
 }

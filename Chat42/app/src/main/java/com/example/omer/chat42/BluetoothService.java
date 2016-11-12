@@ -1,6 +1,5 @@
 package com.example.omer.chat42;
 
-
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -54,10 +53,10 @@ public class BluetoothService extends Service implements Constants {
     @Override
     public void onDestroy() {
         super.onDestroy();
-    }
-
-    public String getCheck() {
-        return "working";
+        if(mServersideThread.isAlive())
+            mServersideThread.cancel();
+        if(mConnectThread.isAlive())
+            mConnectThread.cancel();
     }
 
     public class MyBinder extends Binder {
@@ -72,10 +71,6 @@ public class BluetoothService extends Service implements Constants {
      */
     private void bluetoothInit() {
 
-        //TODO check if the device is already connected to somebody else
-        //TODO add option to disconnect
-        //TODO add status line in the bottom screen
-
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         if (mBluetoothAdapter == null) {
@@ -84,14 +79,17 @@ public class BluetoothService extends Service implements Constants {
                     Toast.LENGTH_LONG).show();
         }
 
-        // Set name for user
-        mBluetoothAdapter.setName("user");
-
         // Init serverside thread
         mServersideThread = new AcceptThread();
 
     }
 
+    /**
+     * Set name for user
+     */
+    public void setName(String name){
+        mBluetoothAdapter.setName(name);
+    }
 
     public boolean isEnabled(){
         return mBluetoothAdapter.isEnabled();
@@ -132,7 +130,6 @@ public class BluetoothService extends Service implements Constants {
     /** Start discoverable mode **/
     public void startDiscoverable() {mServersideThread.start();}
 
-
     /**
      * Turnoff discoverable mode
      */
@@ -142,44 +139,8 @@ public class BluetoothService extends Service implements Constants {
     }
 
 
-    /**
-     * The Handler that gets information back from the threads
-     */
-    private final Handler mHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case SOCKET_RECEIVED:
 
-                    // close discover devices
-                    cancelDiscovery();
-                    // close discoverable
-                    if (MainActivity.isDiscoverableSwitchOn()){
-                        MainActivity.turnOffDiscoverableButton();
-                    }
-                    // close the server side socket
-                    cancelThreadIfAlive();
 
-                    //TODO go to chatActivity and pass the relevant info
-                    break;
-
-                case CONNECTING_FAILURE:
-
-                    // close the thread
-                    // mConnectThread.cancel();
-
-                    Toast.makeText(getApplicationContext(),"Connecting failed",
-                            Toast.LENGTH_LONG).show();
-                    break;
-
-                case NO_BLUETOOTH_SUPPORT:
-
-                    break;
-
-            }
-
-        }
-    };
     /**
      *  Thread connecting as a server side
      */
@@ -213,10 +174,7 @@ public class BluetoothService extends Service implements Constants {
                     // update socket
                     mBluetoothSocket = socket;
 
-                    // TODO find who is the device
-
-                    // Send message back to the Activity for a new Socket received
-                    mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
+                    mConnectedDevice = mBluetoothSocket.getRemoteDevice();
                 }
             }
         }
@@ -259,8 +217,13 @@ public class BluetoothService extends Service implements Constants {
                 mmSocket.connect();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and get out
-                // Send failure message back to the  main Activity
+
+                // close the thread
+                mConnectThread.cancel();
+
+                // Send message back to the Activity connecting failed
                 mHandler.obtainMessage(Constants.CONNECTING_FAILURE).sendToTarget();
+
                 return;
             }
             // update socket
@@ -268,8 +231,7 @@ public class BluetoothService extends Service implements Constants {
 
             // update the connected device
             mConnectedDevice = mmDevice;
-            // Send message back to the Activity for a new Socket received
-            mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
+
         }
 
         /** Will cancel an in-progress connection, and close the socket */
@@ -279,6 +241,20 @@ public class BluetoothService extends Service implements Constants {
             } catch (IOException e) { }
         }
     }
+    /**
+     * The Handler that gets information back from the threads
+     */
+    public final Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case CONNECTING_FAILURE:
+                    Toast.makeText(getApplicationContext(),"Connecting failed",
+                            Toast.LENGTH_LONG).show();
+                    break;
 
+            }
+        }
+    };
 
 }
