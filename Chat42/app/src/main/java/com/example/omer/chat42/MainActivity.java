@@ -5,10 +5,13 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -23,6 +26,8 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.Toast;
+
+import com.example.omer.chat42.BluetoothService.MyBinder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -78,6 +83,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static int mDeviceMode;
     private String mUserName = "user";
 
+    BluetoothService mBluetoothService;
+    boolean mServiceBound = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,8 +120,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             initBluetoothMode();
         else
             initWifiMode();
+
+        /////////////
+        Intent intent = new Intent(this, BluetoothService.class);
+        startService(intent);
+        bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mServiceBound) {
+            unbindService(mServiceConnection);
+            mServiceBound = false;
+        }
+    }
+
+    /**
+     *  Create bounding between service class to this activity
+     */
+    private ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mServiceBound = false;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            MyBinder myBinder = (MyBinder) service;
+            mBluetoothService = myBinder.getService();
+            mServiceBound = true;
+        }
+    };
 
     /** on click listener */
     @Override
@@ -141,12 +180,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // Go to setting
             case R.id.action_settings:
-                Toast.makeText(this, "Setting", Toast.LENGTH_SHORT).show();
+                //check service
+                if (mServiceBound)
+                    Toast.makeText(this,mBluetoothService.getCheck(), Toast.LENGTH_SHORT).show();
                 return true;
 
             // Log out from the current user
             case R.id.action_chat_history:
                 Toast.makeText(this, "Chat history", Toast.LENGTH_SHORT).show();
+                // unbind service
+                if (mServiceBound) {
+                    unbindService(mServiceConnection);
+                    mServiceBound = false;
+                }
                 return true;
 
             // Log out from the current user
@@ -509,6 +555,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mServersideThread.cancel();
         mServersideThread = new AcceptThread();
     }
+
 
     /**
      *  Thread connecting as a server side
