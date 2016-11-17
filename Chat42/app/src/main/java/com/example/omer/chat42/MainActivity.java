@@ -12,6 +12,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -41,15 +43,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ArrayList<BluetoothDevice> mArrayDevices;
     private ArrayAdapter<String> mArrayAdapter;
     private static BroadcastReceiver mReceiver;
-    private static int mState;
-    private static int mScanMode;
-    private static int mConnectionStatus;
     private static int mDeviceMode;
     private String mUserName = "user";
     private static IntentFilter mIntentFilter;
 
-    static BluetoothService mBluetoothService;
-    boolean mServiceBound = false;
+
+    private static BluetoothService mBluetoothService;
+    private static boolean  mIsServiceBound = false;
+    protected final Messenger mMessenger = new Messenger(new IncomingHandler());
+    private static Messenger mServiceMessenger;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,9 +68,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // General init
         generalInit();
 
-        // Bluetooth init
-        bluetoothInit();
-
         // Check the device state - wifi or bluetooth
         mDeviceMode = checkState();
 
@@ -77,16 +78,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             changeUIToWifiMode();
     }
 
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (mServiceBound) {
-            unbindService(mServiceConnection);
-            mServiceBound = false;
-        }
-    }
-
     /**
      *  Create bounding between service class to this activity
      */
@@ -94,16 +85,49 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            mServiceBound = false;
+               mIsServiceBound = false;
         }
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MyBinder myBinder = (MyBinder) service;
             mBluetoothService = myBinder.getService();
-            mServiceBound = true;
+            mServiceMessenger = myBinder.getMessenger();
+
+            mIsServiceBound = true;
+
+            // enable bluetooth
+            enableBluetooth();
+
+            // Bluetooth init
+            bluetoothInit();
+
+            // register Messenger in the service
+            registerToServiceMessenger();
+
+
         }
+
     };
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        // start bluetooth service and bind it to this activity
+        Intent intent = new Intent(this, BluetoothService.class);
+        bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
+        mIsServiceBound = true;
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mIsServiceBound) {
+            mIsServiceBound = false;
+            unbindService(mServiceConnection);
+        }
+    }
+
 
     /** on click listener */
     @Override
@@ -120,9 +144,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onDestroy(){
-        if(mServiceBound) {
+        super.onDestroy();
+        if(mIsServiceBound) {
+           mIsServiceBound = false;
             unregisterReceiver(mReceiver);
-            mServiceBound = false;
         }
     }
 
@@ -134,7 +159,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             // Go to setting
             case R.id.action_settings:
                 //check service
-                if (mServiceBound)
+                if (mIsServiceBound)
                     //TODO
                     Toast.makeText(this,"Replace me!", Toast.LENGTH_SHORT).show();
                 return true;
@@ -149,11 +174,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.action_logout:
                 //TODO
                 Toast.makeText(this,"Replace me!", Toast.LENGTH_SHORT).show();
-                // unbind service
-                if (mServiceBound) {
-                    unbindService(mServiceConnection);
-                    mServiceBound = false;
-                }
                 return true;
 
             // Exit app
@@ -179,14 +199,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return super.onCreateOptionsMenu(menu);
     }
 
-    /**
-     * Disconnect from the conncected device
-     */
-    //TODO add option to disconnect from the device
-    private void disconnectFromDevice(){
-
-    }
-
 
     /**
      * General initilaize of the activity
@@ -196,6 +208,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // setup toolbar
         Toolbar mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(mMyToolbar);
+
+        getSupportActionBar().setTitle("Hello "+mUserName);
 
         // Bind layout's view to class
         mDistanceLayout = (View)findViewById(R.id.layout_distance);
@@ -218,8 +232,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onItemClick(AdapterView<?> parent, View view,
                                     int position, long id) {
-                Toast.makeText(MainActivity.this,"Connecting\n"+mArrayDevices.get(position).getName(), Toast.LENGTH_SHORT).show();
-                mBluetoothService.connectToDevice(mArrayDevices.get(position));
+                Toast.makeText(MainActivity.this,"Connecting\n"+
+                        mArrayDevices.get(position).getName(), Toast.LENGTH_SHORT).show();
+                if(mIsServiceBound)
+                    mBluetoothService.connectToDevice(mArrayDevices.get(position));
             }
         });
     }
@@ -232,11 +248,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //TODO check if the device is already connected to somebody else- in other app
 
         //TODO add status line in the bottom screen
-
-        // init device state
-        mState = -1; //         // device mode - bluetooth or wifi
-        mScanMode = -1;         // scanning mode - look constants
-        mConnectionStatus = -1; // connection state - look constants
 
         // Create a BroadcastReceiver
         createBroadcastReceiver();
@@ -251,10 +262,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mIntentFilter.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
-        registerReceiver(mReceiver,mIntentFilter);
+         registerReceiver(mReceiver,mIntentFilter);
 
         // Set name for user
-        if (mServiceBound){
+        if (mIsServiceBound){
             mBluetoothService.setName(mUserName);
         }
     }
@@ -285,22 +296,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                         switch(state) {
                             case BluetoothAdapter.STATE_OFF:
-                                mState = STATE_OFF;
                                 Toast.makeText(getApplicationContext(),"Bluetooth: STATE_OFF",
                                         Toast.LENGTH_LONG).show();
+                                mDiscoverable.setChecked(false);
+
                                 break;
                             case BluetoothAdapter.STATE_TURNING_OFF:
-                                mState = STATE_TURNING_OFF;
                                 Toast.makeText(getApplicationContext(),"Bluetooth: STATE_TURNING_OFF",
                                         Toast.LENGTH_LONG).show();
                                 break;
                             case BluetoothAdapter.STATE_ON:
-                                mState = STATE_ON;
                                 Toast.makeText(getApplicationContext(),"Bluetooth: STATE_ON",
                                         Toast.LENGTH_LONG).show();
                                 break;
                             case BluetoothAdapter.STATE_TURNING_ON:
-                                mState = STATE_TURNING_ON;
                                 Toast.makeText(getApplicationContext(),"Bluetooth: STATE_TURNING_ON",
                                         Toast.LENGTH_LONG).show();
                                 break;
@@ -313,27 +322,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                         switch(mode) {
                             case BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE:
-                                mScanMode = SCAN_MODE_CONNECTABLE_DISCOVERABLE;
                                 break;
                             case BluetoothAdapter.SCAN_MODE_CONNECTABLE:
-                                mScanMode = SCAN_MODE_CONNECTABLE;
                                 break;
                             case BluetoothAdapter.SCAN_MODE_NONE:
-                                mScanMode = SCAN_MODE_NONE;
                                 break;
                         }
                         break;
 
                     case BluetoothDevice.ACTION_ACL_CONNECTED:
-                        mConnectionStatus = ACTION_ACL_CONNECTED;
                         Toast.makeText(getApplicationContext(),"CONNECTED",
                                 Toast.LENGTH_LONG).show();
-
-                        // Send message back to the Activity handler for a new Socket received
-                        mHandler.obtainMessage(Constants.SOCKET_RECEIVED).sendToTarget();
                         break;
                     case BluetoothDevice.ACTION_ACL_DISCONNECTED:
-                        mConnectionStatus = ACTION_ACL_DISCONNECTED;
                         Toast.makeText(getApplicationContext(),"DISCONNECTED",
                                 Toast.LENGTH_LONG).show();
                         break;
@@ -347,7 +348,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void enableBluetooth() {
 
-        if(mServiceBound){
+        if(mIsServiceBound){
             if (!mBluetoothService.isEnabled()) {
                 Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                 startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
@@ -359,16 +360,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Start discover other devices and update the device list
      */
     private void startDiscoveringDevices(){
-        if(mServiceBound) {
+        if(mIsServiceBound) {
             if (mBluetoothService.isDiscovering()) {
                 // the button is pressed when it discovers, so cancel the discovery
-                mBluetoothService.cancelDiscovery();
+                if (mIsServiceBound)
+                    sendRequestToService(CANCEL_DISCOVERY);
                 Toast.makeText(getApplicationContext(), "Stop discovering",
                         Toast.LENGTH_LONG).show();
             } else {
                 mArrayAdapter.clear();  // clear adapter
                 mArrayDevices.clear();  // clear bluetooth array devices
-                mBluetoothService.startDiscovery();
+                if (mIsServiceBound)
+                    sendRequestToService(START_DISCOVERY);
                 Toast.makeText(getApplicationContext(), "Start discovering",
                         Toast.LENGTH_LONG).show();
             }
@@ -409,13 +412,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     *  Make the device be beDiscoverable
+     *  Make the device be
      */
     private void beDiscoverable(){
-        if (mServiceBound) {
+        if (mIsServiceBound) {
             if (!mDiscoverable.isChecked()) {
-
-                mBluetoothService.stopDiscoverable();
+                sendRequestToService(STOP_DISCOVERABLE);
 
                 // TODO - delete it when using API above 19
                 Intent discoverableIntent = new
@@ -427,52 +429,84 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 if (mBluetoothService.isEnabled())
                     enableBluetooth();
-
                 Intent discoverableIntent = new
                         Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
                 discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
                 startActivity(discoverableIntent);
-                mBluetoothService.startDiscoverable();
-
+                sendRequestToService(START_DISCOVERABLE);
             }
         }
     }
-
     /**
      * Turnoff Discoverable Button
      */
-    public static void turnOffDiscoverableButton() {
-            mBluetoothService.stopDiscoverable();
-            mDiscoverable.setChecked(false);
+    public void turnOffDiscoverableButton() {
+        if (mIsServiceBound) {
+            sendRequestToService(STOP_DISCOVERABLE);
+                mDiscoverable.setChecked(false);
+        }
     }
 
     private void goToChatActivity() {
+        unregisterReceiver(mReceiver);
+        finish();
+        unbindService(mServiceConnection);
+        mIsServiceBound = false;
         Intent goToChatActivity = new Intent(this,ChatActivity.class);
         goToChatActivity.putExtra("USER",mUserName);
         startActivity(goToChatActivity);
     }
 
     /**
-     * The Handler that gets information back from the threads
+     * Handler of incoming messages from service
      */
-    public final Handler mHandler = new Handler() {
+    class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case SOCKET_RECEIVED:
+                case CONNECTING_FAILURE:
+                    Toast.makeText(getApplicationContext(),"Connecting failed",
+                            Toast.LENGTH_LONG).show();
+                    break;
+                case CONNECTING_SUCCEEDS:
+
                     // close discover devices
-                    mBluetoothService.cancelDiscovery();
+                    sendRequestToService(CANCEL_DISCOVERY);
                     // close discoverable
-                    if (MainActivity.isDiscoverableSwitchOn()){
-                        MainActivity.turnOffDiscoverableButton();
+                    if (isDiscoverableSwitchOn()){
+                        turnOffDiscoverableButton();
                     }
                     // close the server side socket
                     mBluetoothService.cancelThreadIfAlive();
-
                     // go to chat activity
                     goToChatActivity();
                     break;
+                default:
+                    super.handleMessage(msg);
             }
         }
-    };
+    }
+
+    /**
+     *   Send request to service
+     */
+    private void sendRequestToService(int request)  {
+        try {
+            mServiceMessenger.send(Message.obtain(null, request));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void registerToServiceMessenger(){
+
+        Message msg = Message.obtain(null, REGISTER_ACTIVITY);
+        msg.replyTo = mMessenger;
+        try {
+            mServiceMessenger.send(msg);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+    }
 }

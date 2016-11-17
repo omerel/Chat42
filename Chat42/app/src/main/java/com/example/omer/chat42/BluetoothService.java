@@ -7,15 +7,21 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 
 /**
  * Created by omer on 12/11/2016.
+ * this service control all the bluetooth connection functions and data transfer functions between
+ * two devices that directly connected
  */
 
 public class BluetoothService extends Service implements Constants {
@@ -24,10 +30,14 @@ public class BluetoothService extends Service implements Constants {
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothSocket mBluetoothSocket;
     private BluetoothDevice mConnectedDevice;
-    private AcceptThread mServersideThread;
+    private AcceptThread mServersideThread = null;
     private ConnectThread mConnectThread;
 
     private IBinder mBinder = new MyBinder();
+    // Messenger that receive messages from activity;
+    final Messenger mMessenger = new Messenger(new IncomingHandler());
+    // activity's messenger
+    private Messenger mActivityMessenger;
 
     @Override
     public void onCreate() {
@@ -60,11 +70,15 @@ public class BluetoothService extends Service implements Constants {
     }
 
     public class MyBinder extends Binder {
+
+        Messenger getMessenger(){
+            return mMessenger;
+        }
         BluetoothService getService() {
             return BluetoothService.this;
         }
-    }
 
+    }
 
     /**
      * Initilaize the bluetooth connection
@@ -79,9 +93,6 @@ public class BluetoothService extends Service implements Constants {
                     Toast.LENGTH_LONG).show();
         }
 
-        // Init serverside thread
-        mServersideThread = new AcceptThread();
-
     }
 
     /**
@@ -91,6 +102,10 @@ public class BluetoothService extends Service implements Constants {
         mBluetoothAdapter.setName(name);
     }
 
+    public String getName(){
+        return mBluetoothAdapter.getName();
+    }
+
     public boolean isEnabled(){
         return mBluetoothAdapter.isEnabled();
     }
@@ -98,14 +113,6 @@ public class BluetoothService extends Service implements Constants {
     public boolean isDiscovering(){
         return mBluetoothAdapter.isDiscovering();
     }
-
-    public void cancelDiscovery(){
-         mBluetoothAdapter.cancelDiscovery();
-    }
-    public void startDiscovery(){
-        mBluetoothAdapter.startDiscovery();
-    }
-
 
     /**
      * Connect to Selected device
@@ -120,26 +127,10 @@ public class BluetoothService extends Service implements Constants {
      *  Destroy thread if it's alive
      */
     public void cancelThreadIfAlive(){
-
-        if (mServersideThread.isAlive())
-            mServersideThread.cancel();
-
-        mServersideThread = new AcceptThread();
+        if (mServersideThread != null)
+            if (mServersideThread.isAlive())
+                mServersideThread.cancel();
     }
-
-    /** Start discoverable mode **/
-    public void startDiscoverable() {mServersideThread.start();}
-
-    /**
-     * Turnoff discoverable mode
-     */
-    public void stopDiscoverable(){
-        mServersideThread.cancel();
-        mServersideThread = new AcceptThread();
-    }
-
-
-
 
     /**
      *  Thread connecting as a server side
@@ -175,6 +166,10 @@ public class BluetoothService extends Service implements Constants {
                     mBluetoothSocket = socket;
 
                     mConnectedDevice = mBluetoothSocket.getRemoteDevice();
+
+                    // Send message back to the Activity connecting succeeds
+                  //  mHandler.obtainMessage(Constants.CONNECTING_SUCCEEDS).sendToTarget();
+                    sendRequestToActivity(CONNECTING_SUCCEEDS);
                 }
             }
         }
@@ -195,6 +190,7 @@ public class BluetoothService extends Service implements Constants {
         private final BluetoothDevice mmDevice;
 
         public ConnectThread(BluetoothDevice device) {
+
             // Use a temporary object that is later assigned to mmSocket,
             // because mmSocket is final
             BluetoothSocket tmp = null;
@@ -222,7 +218,8 @@ public class BluetoothService extends Service implements Constants {
                 mConnectThread.cancel();
 
                 // Send message back to the Activity connecting failed
-                mHandler.obtainMessage(Constants.CONNECTING_FAILURE).sendToTarget();
+               // mHandler.obtainMessage(Constants.CONNECTING_FAILURE).sendToTarget();
+                sendRequestToActivity(CONNECTING_FAILURE);
 
                 return;
             }
@@ -231,6 +228,10 @@ public class BluetoothService extends Service implements Constants {
 
             // update the connected device
             mConnectedDevice = mmDevice;
+
+            // Send message back to the Activity connecting succeeds
+           // mHandler.obtainMessage(Constants.CONNECTING_SUCCEEDS).sendToTarget();
+            sendRequestToActivity(CONNECTING_SUCCEEDS);
 
         }
 
@@ -241,20 +242,102 @@ public class BluetoothService extends Service implements Constants {
             } catch (IOException e) { }
         }
     }
-    /**
-     * The Handler that gets information back from the threads
-     */
-    public final Handler mHandler = new Handler() {
+
+/*
+    private final Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
+                case CONNECTING_SUCCEEDS:
+                    sendRequestToActivity(CONNECTING_SUCCEEDS);
+                   break;
                 case CONNECTING_FAILURE:
-                    Toast.makeText(getApplicationContext(),"Connecting failed",
-                            Toast.LENGTH_LONG).show();
+                    sendRequestToActivity(CONNECTING_FAILURE);
                     break;
 
             }
+
         }
     };
+*/
+    /**
+     * Handler of incoming messages from activity
+     */
+    class IncomingHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case REGISTER_ACTIVITY:
+                    mActivityMessenger = msg.replyTo;
+                    break;
+                case CANCEL_DISCOVERY:
+                    mBluetoothAdapter.cancelDiscovery();
+                break;
+                case START_DISCOVERY:
+                    mBluetoothAdapter.startDiscovery();
+                    break;
+                case STOP_DISCOVERABLE:
+                    mServersideThread.cancel();
+                    break;
+                case START_DISCOVERABLE:
+                    mServersideThread = new AcceptThread();
+                    mServersideThread.start();
+                break;
+                case CLOSE_SOCKET:
+
+                  //  unpairDevice(mConnectedDevice);
+
+                    try {
+                        mBluetoothSocket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    cancelThreadIfAlive();
+
+                    break;
+                default:
+                    super.handleMessage(msg);
+            }
+        }
+    }
+
+    /**
+     * Send string Message value to activity
+     */
+    private void sendMessageToActivity(String message)  {
+
+        // Send data as a String
+        Bundle bundle = new Bundle();
+        bundle.putString("string",message);
+        Message msg = Message.obtain(null, INCOMING_MSG);
+        msg.setData(bundle);
+        try {
+            mActivityMessenger.send(msg);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+    *   Send request to activity
+    */
+    private void sendRequestToActivity(int request)  {
+        try {
+            mActivityMessenger.send(Message.obtain(null, request));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void unpairDevice(BluetoothDevice device) {
+        try {
+            Method method = device.getClass().getMethod("removeBond", (Class[]) null);
+            method.invoke(device, (Object[]) null);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 }
