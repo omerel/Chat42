@@ -16,6 +16,8 @@ import android.os.RemoteException;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 
 /**
@@ -32,6 +34,7 @@ public class BluetoothService extends Service implements Constants {
     private BluetoothDevice mConnectedDevice;
     private AcceptThread mServersideThread = null;
     private ConnectThread mConnectThread;
+    private ConversationThread mConversationThread;
 
     private IBinder mBinder = new MyBinder();
     // Messenger that receive messages from activity;
@@ -168,8 +171,11 @@ public class BluetoothService extends Service implements Constants {
                     mConnectedDevice = mBluetoothSocket.getRemoteDevice();
 
                     // Send message back to the Activity connecting succeeds
-                  //  mHandler.obtainMessage(Constants.CONNECTING_SUCCEEDS).sendToTarget();
                     sendRequestToActivity(CONNECTING_SUCCEEDS);
+
+                    // start Conversation thread
+                    mConversationThread = new ConversationThread(mBluetoothSocket,"");
+                    mConversationThread.start();
                 }
             }
         }
@@ -218,7 +224,6 @@ public class BluetoothService extends Service implements Constants {
                 mConnectThread.cancel();
 
                 // Send message back to the Activity connecting failed
-               // mHandler.obtainMessage(Constants.CONNECTING_FAILURE).sendToTarget();
                 sendRequestToActivity(CONNECTING_FAILURE);
 
                 return;
@@ -230,8 +235,11 @@ public class BluetoothService extends Service implements Constants {
             mConnectedDevice = mmDevice;
 
             // Send message back to the Activity connecting succeeds
-           // mHandler.obtainMessage(Constants.CONNECTING_SUCCEEDS).sendToTarget();
             sendRequestToActivity(CONNECTING_SUCCEEDS);
+
+            // start Conversation thread
+            mConversationThread = new ConversationThread(mBluetoothSocket,"");
+            mConversationThread.start();
 
         }
 
@@ -284,17 +292,17 @@ public class BluetoothService extends Service implements Constants {
                     mServersideThread.start();
                 break;
                 case CLOSE_SOCKET:
-
-                  //  unpairDevice(mConnectedDevice);
-
                     try {
                         mBluetoothSocket.close();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                     cancelThreadIfAlive();
-
                     break;
+                case MESSAGE_WRITE:
+                    String content = msg.getData().getString("string");
+                    mConversationThread.write(content.getBytes());
+                break;
                 default:
                     super.handleMessage(msg);
             }
@@ -309,7 +317,7 @@ public class BluetoothService extends Service implements Constants {
         // Send data as a String
         Bundle bundle = new Bundle();
         bundle.putString("string",message);
-        Message msg = Message.obtain(null, INCOMING_MSG);
+        Message msg = Message.obtain(null, MESSAGE_READ);
         msg.setData(bundle);
         try {
             mActivityMessenger.send(msg);
@@ -337,6 +345,76 @@ public class BluetoothService extends Service implements Constants {
 
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * This thread runs during a connection with a remote device.
+     * It handles all incoming and outgoing transmissions.
+     */
+    private class ConversationThread extends Thread {
+        private final BluetoothSocket mmSocket;
+        private final InputStream mmInStream;
+        private final OutputStream mmOutStream;
+
+        public ConversationThread(BluetoothSocket socket, String socketType) {
+            mmSocket = socket;
+            InputStream tmpIn = null;
+            OutputStream tmpOut = null;
+
+            // Get the BluetoothSocket input and output streams
+            try {
+                tmpIn = socket.getInputStream();
+                tmpOut = socket.getOutputStream();
+            } catch (IOException e) {
+            }
+
+            mmInStream = tmpIn;
+            mmOutStream = tmpOut;
+        }
+
+        public void run() {
+            byte[] buffer = new byte[1024];
+            int bytes;
+
+            // Keep listening to the InputStream while connected
+            while (mmSocket.isConnected()) {
+                try {
+                    // Read from the InputStream
+                    bytes = mmInStream.read(buffer);
+                    sendRequestToActivity(TEST_MSG_IN);
+                    // Send the obtained bytes to the UI Activity
+                    byte[] readBuf = buffer;
+
+                    // construct a string from the valid bytes in the buffer
+                    String readMessage = new String(readBuf, 0, bytes);
+
+                    sendMessageToActivity(mConnectedDevice.getName() + ":  " + readMessage);
+
+                } catch (IOException e) {
+                    break;
+                }
+            }
+        }
+
+        /**
+         * Write to the connected OutStream.
+         *
+         * @param buffer The bytes to write
+         */
+        public void write(byte[] buffer) {
+            try {
+                mmOutStream.write(buffer);
+                sendRequestToActivity(TEST_MSG_OUT);
+            } catch (IOException e) {
+            }
+        }
+
+        public void cancel() {
+            try {
+                mmSocket.close();
+            } catch (IOException e) {
+            }
         }
     }
 

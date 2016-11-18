@@ -22,18 +22,27 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.Toast;
 
 public class ChatActivity extends AppCompatActivity  implements View.OnClickListener,Constants {
 
     // Layout's views
     private Toolbar mMyToolbar;
+    private EditText mCommandChat;
+    private ImageButton mSendButton;
+    private ListView mListViewChat;
 
     // fileds
     private static BroadcastReceiver mReceiver;
     private static IntentFilter mIntentFilter;
-    boolean mServiceBound = false;
-    static BluetoothService mBluetoothService;
+    private boolean mServiceBound = false;
+    private static BluetoothService mBluetoothService;
+    private String mUserName;
+    private ArrayAdapter<String> mConversationArrayAdapter;
 
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
     private static Messenger mServiceMessenger;
@@ -42,6 +51,8 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
+
+        mUserName =  getIntent().getStringExtra("USER");
 
         // start bluetooth service and bind it to this activity
         Intent intent = new Intent(this, BluetoothService.class);
@@ -53,14 +64,24 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     }
 
     private void generalInit() {
+
         // setup toolbar
         mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(mMyToolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        getSupportActionBar().setIcon(R.drawable.ic_bluetooth_black_24dp);
-        getSupportActionBar().setTitle("Chat with");
+        getSupportActionBar().setTitle("Chat with "+mUserName);
 
+        // Bind layout's view to class
+        mCommandChat = (EditText)findViewById(R.id.editText_command_chat);
+        mSendButton = (ImageButton)findViewById(R.id.imageButton_send_msg);
+        mListViewChat = (ListView)findViewById(R.id.listview_chat);
+
+        mConversationArrayAdapter = new ArrayAdapter<>(this,R.layout.item_device);
+        mListViewChat.setAdapter(mConversationArrayAdapter);
+
+        // Set on click listener
+        mSendButton.setOnClickListener(this);
 
         // Create a BroadcastReceiver
         createBroadcastReceiver();
@@ -76,8 +97,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         registerReceiver(mReceiver,mIntentFilter);
     }
-
-
 
     /**
      * Make the action button appear in old devices
@@ -138,7 +157,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
     @Override
     public void onClick(View v) {
-
+        switch (v.getId()){
+            case (R.id.imageButton_send_msg):
+                String content = mCommandChat.getText().toString();
+                mCommandChat.setText("");
+                if (!content.isEmpty()){
+                    sendMessageToService(content);
+                    mConversationArrayAdapter.add("Me: "+content);
+                }
+                break;
+        }
     }
 
 
@@ -185,8 +213,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case CONNECTING_FAILURE:
-                    Toast.makeText(getApplicationContext(),"Connecting failed",
+                case MESSAGE_READ:
+                    String content = msg.getData().getString("string");
+                    mConversationArrayAdapter.add(content);
+                    break;
+                case TEST_MSG_IN:
+                    Toast.makeText(getApplicationContext(),"TEST_MSG_IN",
+                            Toast.LENGTH_LONG).show();
+                    break;
+                case TEST_MSG_OUT:
+                    Toast.makeText(getApplicationContext(),"TEST_MSG_OUT",
                             Toast.LENGTH_LONG).show();
                     break;
                 default:
@@ -194,6 +230,25 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             }
         }
     }
+
+
+    /**
+     * Send string Message value to service
+     */
+    private void sendMessageToService(String message)  {
+
+        // Send data as a String
+        Bundle bundle = new Bundle();
+        bundle.putString("string",message);
+        Message msg = Message.obtain(null, MESSAGE_WRITE);
+        msg.setData(bundle);
+        try {
+            mServiceMessenger.send(msg);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      *   Send request to service
      */

@@ -262,7 +262,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mIntentFilter.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
-         registerReceiver(mReceiver,mIntentFilter);
+        registerReceiver(mReceiver,mIntentFilter);
 
         // Set name for user
         if (mIsServiceBound){
@@ -486,6 +486,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     }
+
 
     /**
      *   Send request to service
