@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -240,7 +241,6 @@ public class BluetoothService extends Service implements Constants {
             // start Conversation thread
             mConversationThread = new ConversationThread(mBluetoothSocket,"");
             mConversationThread.start();
-
         }
 
         /** Will cancel an in-progress connection, and close the socket */
@@ -382,7 +382,6 @@ public class BluetoothService extends Service implements Constants {
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
-                    sendRequestToActivity(TEST_MSG_IN);
                     // Send the obtained bytes to the UI Activity
                     byte[] readBuf = buffer;
 
@@ -405,7 +404,6 @@ public class BluetoothService extends Service implements Constants {
         public void write(byte[] buffer) {
             try {
                 mmOutStream.write(buffer);
-                sendRequestToActivity(TEST_MSG_OUT);
             } catch (IOException e) {
             }
         }

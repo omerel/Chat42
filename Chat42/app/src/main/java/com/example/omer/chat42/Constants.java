@@ -31,9 +31,6 @@ public interface Constants {
     int REQUEST_ENABLE_BT = 23;
 
 
-    int TEST_MSG_OUT =123;
-    int TEST_MSG_IN =124;
-
 
     // Unique UUID for this application
     UUID MY_UUID = UUID.fromString("ca87c0d0-afac-11de-8a39-0800200c9a66");

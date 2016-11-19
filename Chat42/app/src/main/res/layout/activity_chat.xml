@@ -24,14 +24,16 @@
         android:id="@+id/listview_chat"
         android:layout_above="@+id/imageButton_send_msg"
         android:layout_marginTop="50dp"
-        android:layout_alignParentTop="true">
+        android:layout_alignParentTop="true"
+        android:divider="@null"
+        android:dividerHeight="0dp">
     </ListView>
 
     <EditText
         android:layout_width="300dp"
         android:layout_height="wrap_content"
         android:inputType="text"
-        android:hint="Write here your message"
+        android:hint="Write here your mMessage"
         android:ems="10"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"

@@ -18,6 +18,7 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -25,8 +26,11 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
+
+import java.util.ArrayList;
 
 public class ChatActivity extends AppCompatActivity  implements View.OnClickListener,Constants {
 
@@ -35,6 +39,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private EditText mCommandChat;
     private ImageButton mSendButton;
     private ListView mListViewChat;
+    private LinearLayout mLinearLayoutChat;
 
     // fileds
     private static BroadcastReceiver mReceiver;
@@ -42,6 +47,8 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private boolean mServiceBound = false;
     private static BluetoothService mBluetoothService;
     private String mUserName;
+    private ChatAdapter mChatAdapter;  //test
+    private ArrayList<Message> mChatDialogList; //test
     private ArrayAdapter<String> mConversationArrayAdapter;
 
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
@@ -77,7 +84,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mSendButton = (ImageButton)findViewById(R.id.imageButton_send_msg);
         mListViewChat = (ListView)findViewById(R.id.listview_chat);
 
-        mConversationArrayAdapter = new ArrayAdapter<>(this,R.layout.item_device);
+        mConversationArrayAdapter = new ArrayAdapter<>(this,R.layout.item_chat_bubbles,R.id.textView_item_chat);
         mListViewChat.setAdapter(mConversationArrayAdapter);
 
         // Set on click listener
@@ -163,10 +170,39 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 mCommandChat.setText("");
                 if (!content.isEmpty()){
                     sendMessageToService(content);
-                    mConversationArrayAdapter.add("Me: "+content);
+                    addMyMessageToConversation(content);
                 }
                 break;
         }
+    }
+
+    private void addMyMessageToConversation(String content) {
+        mConversationArrayAdapter.add("Me: "+content);
+        mConversationArrayAdapter.notifyDataSetChanged();
+
+        mListViewChat.setSelection(mListViewChat.getAdapter().getCount()-1);
+    }
+    private void addMessageToConversation(String content) {
+        mConversationArrayAdapter.add(content);
+
+        mConversationArrayAdapter.notifyDataSetChanged();
+        //View v = mConversationArrayAdapter.
+        /*
+        View v = mListViewChat.getChildAt(mListViewChat.getAdapter().getCount()-1);
+        if(v == null)
+            return;
+        mLinearLayoutChat = (LinearLayout) v.findViewById(R.id.item_chat_bubble);
+        mLinearLayoutChat.setBackgroundResource(R.drawable.bubble_right);
+        mConversationArrayAdapter.notifyDataSetChanged();
+        */
+        mListViewChat.setSelection(mListViewChat.getAdapter().getCount()-1);
+
+        View v = mListViewChat.getSelectedView();
+        if(v == null)
+            return;
+        mLinearLayoutChat = (LinearLayout) v.findViewById(R.id.item_chat_bubble);
+        mLinearLayoutChat.setBackgroundResource(R.drawable.bubble_right);
+        mConversationArrayAdapter.notifyDataSetChanged();
     }
 
 
@@ -215,15 +251,8 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             switch (msg.what) {
                 case MESSAGE_READ:
                     String content = msg.getData().getString("string");
-                    mConversationArrayAdapter.add(content);
-                    break;
-                case TEST_MSG_IN:
-                    Toast.makeText(getApplicationContext(),"TEST_MSG_IN",
-                            Toast.LENGTH_LONG).show();
-                    break;
-                case TEST_MSG_OUT:
-                    Toast.makeText(getApplicationContext(),"TEST_MSG_OUT",
-                            Toast.LENGTH_LONG).show();
+                   //mConversationArrayAdapter.add(content);
+                    addMessageToConversation(content);
                     break;
                 default:
                     super.handleMessage(msg);
