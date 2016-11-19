@@ -1,23 +1,33 @@
 package com.example.omer.chat42;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.TaskStackBuilder;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.support.v7.app.ActionBar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
+import android.transition.Visibility;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -33,6 +43,8 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+
+import static android.app.Notification.VISIBILITY_PUBLIC;
 
 public class ChatActivity extends AppCompatActivity  implements View.OnClickListener,Constants {
 
@@ -90,9 +102,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
         // Init ChatDialog list
         mChatDialogList =  new ArrayList<>();
-        // Add test msg to show as history
-        mTempMessage = new ChatMessage(mDeviceAddress, mConnectedDeviceAddress, "This is a test",Calendar.getInstance());
-      //  mChatDialogList.add(mTempMessage);
 
         mChatAdapter = new ChatAdapter(this,mChatDialogList);
         mListViewChat.setAdapter(mChatAdapter);
@@ -113,6 +122,57 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         registerReceiver(mReceiver,mIntentFilter);
+    }
+
+    /**
+     *  Create  Exit alert dialog
+     */
+    private AlertDialog createExitAlertDialog() {
+
+        AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setTitle("Quit");
+        alertDialog.setMessage("Are you sure you want to quit?");
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "YES",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        finish();
+                        System.exit(0);
+                    }
+                });
+        alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "NO",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        alertDialog.show();
+        return alertDialog;
+    }
+
+    /**
+     *  Create home alert dialog
+     */
+    private AlertDialog createHomeAlertDialog() {
+
+        AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setTitle("Exit");
+        alertDialog.setMessage("Are you sure you want finish chat?");
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "YES",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        goToMainActivity();
+                    }
+                });
+        alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "NO",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        alertDialog.show();
+        return alertDialog;
     }
 
     /**
@@ -155,13 +215,11 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
             // go back;
             case android.R.id.home:
-                goToMainActivity();
+                createHomeAlertDialog();
                 return true;
-
             // Exit app
             case R.id.action_exit:
-                finish();
-                System.exit(0);
+                createExitAlertDialog();
                 return true;
             default:
                 // If we got here, the user's action was not recognized.
@@ -170,7 +228,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
         }
     }
-
 
     @Override
     public void onClick(View v) {
@@ -221,9 +278,30 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             mConnectedDeviceAddress = mBluetoothService.getConnectedAddress();
             // update address in adapter
             mChatAdapter.setMyAddress(mDeviceAddress);
+            // restore chat history
+            restoreChatHistory(mChatDialogList,mDeviceAddress,mConnectedDeviceAddress);
 
         }
     };
+
+    /**
+     * TODO
+     * this method will connect to dataBase and will restore the chat history between the two device
+     * @param mChatDialogList
+     * @param mDeviceAddress
+     * @param mConnectedDeviceAddress
+     */
+    private void restoreChatHistory(ArrayList<ChatMessage> mChatDialogList, String mDeviceAddress, String mConnectedDeviceAddress) {
+
+        // Add test msg to show as history
+        mTempMessage = new ChatMessage(mDeviceAddress, mConnectedDeviceAddress, "Hi!\n this is a test",Calendar.getInstance());
+        mChatDialogList.add(mTempMessage);
+        mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress, "Yes!\n it works!",Calendar.getInstance());
+        mChatDialogList.add(mTempMessage);
+        mTempMessage = new ChatMessage(mDeviceAddress, mConnectedDeviceAddress, "Now you can type your own messages",Calendar.getInstance());
+        mChatDialogList.add(mTempMessage);
+
+    }
 
     private void goToMainActivity() {
 
@@ -250,13 +328,14 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 case MESSAGE_READ:
                     String content = msg.getData().getString("string");
                     addMessageToConversation(mConnectedDeviceAddress,mDeviceAddress,content);
+                    // notify message arrived
+                    notifyMessageArrived(content);
                     break;
                 default:
                     super.handleMessage(msg);
             }
         }
     }
-
 
     /**
      * Send string ChatMessage value to service
@@ -294,6 +373,30 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    }
+
+
+    /**
+     *  Notify when new message arrived
+     */
+
+    public void notifyMessageArrived(String content){
+        //Define Notification Manager
+        NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        //Define sound URI
+        Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+
+        android.support.v4.app.NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext())
+                .setSmallIcon(R.drawable.ic_bluetooth_black_24dp)
+                .setContentTitle("Chat42")
+                .setContentText(content)
+                .setDefaults(Notification.DEFAULT_ALL)
+                .setVisibility(VISIBILITY_PUBLIC)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setSound(soundUri); //This sets the sound to play
+        //Display notification
+        notificationManager.notify(0, mBuilder.build());
     }
 
     /**

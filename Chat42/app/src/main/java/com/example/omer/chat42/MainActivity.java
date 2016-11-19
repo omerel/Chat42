@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -14,6 +15,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -34,7 +36,7 @@ import java.util.ArrayList;
  **/
 public class MainActivity extends AppCompatActivity implements View.OnClickListener,Constants {
 
-    private  View mDistanceLayout;
+    // Views
     private  View mDiscoverableLayout;
     private static Switch mDiscoverable;
     private  ListView mDevicesList;
@@ -178,8 +180,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // Exit app
             case R.id.action_exit:
-                finish();
-                System.exit(0);
+                createExitAlertDialog();
                 return true;
 
             default:
@@ -212,7 +213,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         getSupportActionBar().setTitle("Hello "+mUserName);
 
         // Bind layout's view to class
-        mDistanceLayout = (View)findViewById(R.id.layout_distance);
         mDiscoverableLayout = (View)findViewById(R.id.layout_discoverable);
         Button mSearchButton = (Button) findViewById(R.id.button_search);
         mDiscoverable = (Switch)findViewById(R.id.switch_discoverable);
@@ -397,8 +397,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void changeUIToBluetoothMode() {
         // TODO Change icon mode to bluetooth
-        // Disable distance function
-        mDistanceLayout.setVisibility(View.GONE);
     }
 
     /**
@@ -487,7 +485,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    /**
+     *  Create  Exit alert dialog
+     */
+    private AlertDialog createExitAlertDialog() {
 
+        AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setTitle("Quit");
+        alertDialog.setMessage("Are you sure you want to quit?");
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "YES",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        finish();
+                        System.exit(0);
+                    }
+                });
+        alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "NO",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        alertDialog.show();
+        return alertDialog;
+    }
     /**
      *   Send request to service
      */

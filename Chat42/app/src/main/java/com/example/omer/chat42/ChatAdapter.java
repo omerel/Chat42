@@ -84,6 +84,7 @@ public class ChatAdapter extends BaseAdapter {
     public void setMyAddress(String address){
         this.deviceAddress = address;
     }
+
     public void add(List<ChatMessage> messages) {
         chatMessages.addAll(messages);
     }
