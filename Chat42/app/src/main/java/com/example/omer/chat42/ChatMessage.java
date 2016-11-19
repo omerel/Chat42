@@ -1,54 +1,55 @@
 package com.example.omer.chat42;
 
+import java.util.Calendar;
 import java.util.Date;
 
 /**
  * Created by omer on 19/11/2016.
  */
 
-public class Message {
+public class ChatMessage {
 
-    private int mSenderAddress;
-    private int mReceiverAddress;
+    private String mSenderAddress;
+    private String mReceiverAddress;
     private String mMessage;
-    private Date mDateTime;
+    private Calendar mDateTime;
 
-    public Message(int mSenderAddress, int mReceiverAddress, String message, Date mDateTime) {
+    public ChatMessage(String mSenderAddress, String mReceiverAddress, String message, Calendar mDateTime) {
         this.mSenderAddress = mSenderAddress;
         this.mReceiverAddress = mReceiverAddress;
         this.mMessage = message;
         this.mDateTime = mDateTime;
     }
 
-    public int getmSenderAddress() {
+    public String getSenderAddress() {
         return mSenderAddress;
     }
 
-    public void setmSenderAddress(int mSenderAddress) {
+    public void setSenderAddress(String mSenderAddress) {
         this.mSenderAddress = mSenderAddress;
     }
 
-    public int getmReceiverAddress() {
+    public String getReceiverAddress() {
         return mReceiverAddress;
     }
 
-    public void setmReceiverAddress(int mReceiverAddress) {
+    public void setReceiverAddress(String mReceiverAddress) {
         this.mReceiverAddress = mReceiverAddress;
     }
 
-    public String getmMessage() {
+    public String getMessage() {
         return mMessage;
     }
 
-    public void setmMessage(String mMessage) {
+    public void setMessage(String mMessage) {
         this.mMessage = mMessage;
     }
 
-    public Date getmDateTime() {
+    public Calendar getDateTime() {
         return mDateTime;
     }
 
-    public void setmDateTime(Date mDateTime) {
+    public void setDateTime(Calendar mDateTime) {
         this.mDateTime = mDateTime;
     }
 }

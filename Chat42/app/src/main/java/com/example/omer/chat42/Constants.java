@@ -8,12 +8,12 @@ import java.util.UUID;
 
 public interface Constants {
 
-    // Message types communication between two Bluetooth devices
+    // ChatMessage types communication between two Bluetooth devices
     int MESSAGE_READ = 1;
     int MESSAGE_WRITE = 2;
     int MESSAGE_DEVICE_NAME = 3;
 
-    // Message types communication between BluetoothChatService incomingHandler to activity
+    // ChatMessage types communication between BluetoothChatService incomingHandler to activity
     int REGISTER_ACTIVITY = 11;
     int CONNECTING_FAILURE = 12;
     int CANCEL_DISCOVERY = 13;

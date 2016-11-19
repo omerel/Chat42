@@ -73,6 +73,14 @@ public class BluetoothService extends Service implements Constants {
             mConnectThread.cancel();
     }
 
+    public String getAddress() {
+        return mBluetoothAdapter.getAddress();
+    }
+
+    public String getConnectedAddress() {
+        return mConnectedDevice.getAddress();
+    }
+
     public class MyBinder extends Binder {
 
         Messenger getMessenger(){
@@ -254,7 +262,7 @@ public class BluetoothService extends Service implements Constants {
 /*
     private final Handler mHandler = new Handler() {
         @Override
-        public void handleMessage(Message msg) {
+        public void handleMessage(ChatMessage msg) {
             switch (msg.what) {
                 case CONNECTING_SUCCEEDS:
                     sendRequestToActivity(CONNECTING_SUCCEEDS);
@@ -310,7 +318,7 @@ public class BluetoothService extends Service implements Constants {
     }
 
     /**
-     * Send string Message value to activity
+     * Send string ChatMessage value to activity
      */
     private void sendMessageToActivity(String message)  {
 
@@ -388,7 +396,7 @@ public class BluetoothService extends Service implements Constants {
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, bytes);
 
-                    sendMessageToActivity(mConnectedDevice.getName() + ":  " + readMessage);
+                    sendMessageToActivity(mConnectedDevice.getName()+":\n"+readMessage);
 
                 } catch (IOException e) {
                     break;

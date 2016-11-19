@@ -31,6 +31,8 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 
 public class ChatActivity extends AppCompatActivity  implements View.OnClickListener,Constants {
 
@@ -39,17 +41,18 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private EditText mCommandChat;
     private ImageButton mSendButton;
     private ListView mListViewChat;
-    private LinearLayout mLinearLayoutChat;
 
     // fileds
+    private String mDeviceAddress;
+    private String mConnectedDeviceAddress;
     private static BroadcastReceiver mReceiver;
     private static IntentFilter mIntentFilter;
     private boolean mServiceBound = false;
     private static BluetoothService mBluetoothService;
     private String mUserName;
-    private ChatAdapter mChatAdapter;  //test
-    private ArrayList<Message> mChatDialogList; //test
-    private ArrayAdapter<String> mConversationArrayAdapter;
+    private ChatMessage mTempMessage;
+    private ChatAdapter mChatAdapter;
+    private ArrayList<ChatMessage> mChatDialogList;
 
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
     private static Messenger mServiceMessenger;
@@ -84,8 +87,15 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mSendButton = (ImageButton)findViewById(R.id.imageButton_send_msg);
         mListViewChat = (ListView)findViewById(R.id.listview_chat);
 
-        mConversationArrayAdapter = new ArrayAdapter<>(this,R.layout.item_chat_bubbles,R.id.textView_item_chat);
-        mListViewChat.setAdapter(mConversationArrayAdapter);
+
+        // Init ChatDialog list
+        mChatDialogList =  new ArrayList<>();
+        // Add test msg to show as history
+        mTempMessage = new ChatMessage(mDeviceAddress, mConnectedDeviceAddress, "This is a test",Calendar.getInstance());
+      //  mChatDialogList.add(mTempMessage);
+
+        mChatAdapter = new ChatAdapter(this,mChatDialogList);
+        mListViewChat.setAdapter(mChatAdapter);
 
         // Set on click listener
         mSendButton.setOnClickListener(this);
@@ -170,39 +180,21 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 mCommandChat.setText("");
                 if (!content.isEmpty()){
                     sendMessageToService(content);
-                    addMyMessageToConversation(content);
+                    addMessageToConversation(mDeviceAddress,mConnectedDeviceAddress,
+                            mBluetoothService.getName()+":\n"+content);
                 }
                 break;
         }
     }
 
-    private void addMyMessageToConversation(String content) {
-        mConversationArrayAdapter.add("Me: "+content);
-        mConversationArrayAdapter.notifyDataSetChanged();
+    private void addMessageToConversation(String sender, String receiver ,String content) {
 
+        // create message;
+        mTempMessage = new ChatMessage(sender,receiver,content,Calendar.getInstance());
+        // add to adapter
+        mChatAdapter.add(mTempMessage);
+        mChatAdapter.notifyDataSetChanged();
         mListViewChat.setSelection(mListViewChat.getAdapter().getCount()-1);
-    }
-    private void addMessageToConversation(String content) {
-        mConversationArrayAdapter.add(content);
-
-        mConversationArrayAdapter.notifyDataSetChanged();
-        //View v = mConversationArrayAdapter.
-        /*
-        View v = mListViewChat.getChildAt(mListViewChat.getAdapter().getCount()-1);
-        if(v == null)
-            return;
-        mLinearLayoutChat = (LinearLayout) v.findViewById(R.id.item_chat_bubble);
-        mLinearLayoutChat.setBackgroundResource(R.drawable.bubble_right);
-        mConversationArrayAdapter.notifyDataSetChanged();
-        */
-        mListViewChat.setSelection(mListViewChat.getAdapter().getCount()-1);
-
-        View v = mListViewChat.getSelectedView();
-        if(v == null)
-            return;
-        mLinearLayoutChat = (LinearLayout) v.findViewById(R.id.item_chat_bubble);
-        mLinearLayoutChat.setBackgroundResource(R.drawable.bubble_right);
-        mConversationArrayAdapter.notifyDataSetChanged();
     }
 
 
@@ -224,6 +216,12 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             mServiceBound = true;
             // register Messenger in the service
             registerToServiceMessenger();
+            // get devices addresses
+            mDeviceAddress = mBluetoothService.getAddress();
+            mConnectedDeviceAddress = mBluetoothService.getConnectedAddress();
+            // update address in adapter
+            mChatAdapter.setMyAddress(mDeviceAddress);
+
         }
     };
 
@@ -251,8 +249,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             switch (msg.what) {
                 case MESSAGE_READ:
                     String content = msg.getData().getString("string");
-                   //mConversationArrayAdapter.add(content);
-                    addMessageToConversation(content);
+                    addMessageToConversation(mConnectedDeviceAddress,mDeviceAddress,content);
                     break;
                 default:
                     super.handleMessage(msg);
@@ -262,7 +259,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
 
     /**
-     * Send string Message value to service
+     * Send string ChatMessage value to service
      */
     private void sendMessageToService(String message)  {
 
@@ -290,7 +287,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     }
 
     private void registerToServiceMessenger(){
-
         Message msg = Message.obtain(null, REGISTER_ACTIVITY);
         msg.replyTo = mMessenger;
         try {
@@ -298,7 +294,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         } catch (RemoteException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
