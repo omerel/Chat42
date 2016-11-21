@@ -3,11 +3,9 @@ package com.example.omer.chat42;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
-import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -16,27 +14,22 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
-import android.transition.Visibility;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -65,6 +58,10 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private ChatMessage mTempMessage;
     private ChatAdapter mChatAdapter;
     private ArrayList<ChatMessage> mChatDialogList;
+    private boolean mIsInFront;
+    private DBManager mDBManager;
+    private boolean mIsProfilePicAvailable;
+    private boolean mIsProfileBoy;
 
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
     private static Messenger mServiceMessenger;
@@ -85,7 +82,28 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         generalInit();
     }
 
+    @Override
+    public void onBackPressed() {
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mIsInFront = true;
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        mIsInFront = false;
+    }
+
     private void generalInit() {
+
+        // Set profile picture
+        // TODO get extra picture
+        mIsProfilePicAvailable = false;
+        mIsProfileBoy = true;
 
         // setup toolbar
         mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
@@ -93,6 +111,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         getSupportActionBar().setTitle("Chat with "+mUserName);
+
 
         // Bind layout's view to class
         mCommandChat = (EditText)findViewById(R.id.editText_command_chat);
@@ -111,6 +130,10 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
         // Create a BroadcastReceiver
         createBroadcastReceiver();
+
+        // setup Data base
+        mDBManager = new DBManager(this);
+
 
         // register to Receiver
         mIntentFilter = new IntentFilter();
@@ -176,6 +199,24 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     }
 
     /**
+     *  Create general alert dialog
+     */
+    private AlertDialog createGenralAlertDialog(String content) {
+
+        AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setTitle("Notice");
+        alertDialog.setMessage(content);
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "OK",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        alertDialog.show();
+        return alertDialog;
+    }
+
+    /**
      * Make the action button appear in old devices
      **/
     @Override
@@ -183,7 +224,27 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         // Inflate the menu; this adds items to the action bar if it is present.
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu, menu);
+
+        // update menu titles and icons
+        MenuItem menuIconMode = menu.findItem(R.id.action_mode_logo);
+        menuIconMode.setIcon(R.drawable.bluetooth_connected);
+
+        if (!mIsProfilePicAvailable){
+            if (mIsProfileBoy)
+                menu.findItem(R.id.action_profile).setIcon(R.drawable.boy_pic);
+            else
+                menu.findItem(R.id.action_profile).setIcon(R.drawable.gitl_pic);
+        }
+        else
+            if (mIsProfileBoy)
+                menu.findItem(R.id.action_profile).setIcon(R.drawable.boy);
+            else
+                menu.findItem(R.id.action_profile).setIcon(R.drawable.girl);
+
+
+
         return super.onCreateOptionsMenu(menu);
+
     }
 
     /**
@@ -193,18 +254,30 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
 
-            // Go to setting
+            // show profile picture
+            case R.id.action_profile:
+                //TODO
+                if (mIsProfilePicAvailable)
+                    Toast.makeText(this, "Open picture", Toast.LENGTH_SHORT).show();
+                else
+                    createGenralAlertDialog(mUserName + " didn't share his/her picture");
+                return true;
+
+            // show icon status
+            case R.id.action_mode_logo:
+                    Toast.makeText(this, "You are connected to "+mUserName, Toast.LENGTH_SHORT).show();
+                return true;
+
             case R.id.action_settings:
-                //check service
-                //  if (mIsServiceBound)
                 //TODO
                 Toast.makeText(this, "Replace me!", Toast.LENGTH_SHORT).show();
                 return true;
 
             // Log out from the current user
             case R.id.action_chat_history:
-                //TODO
-                Toast.makeText(this, "Replace me!", Toast.LENGTH_SHORT).show();
+                mDBManager.deleteAllMessages(mConnectedDeviceAddress);
+                mChatDialogList.clear();
+                mChatAdapter.notifyDataSetChanged();
                 return true;
 
             // Log out from the current user
@@ -225,7 +298,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 // If we got here, the user's action was not recognized.
                 // Invoke the superclass to handle it.
                 return super.onOptionsItemSelected(item);
-
         }
     }
 
@@ -236,20 +308,29 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 String content = mCommandChat.getText().toString();
                 mCommandChat.setText("");
                 if (!content.isEmpty()){
+                    // send message to other service
                     sendMessageToService(content);
-                    addMessageToConversation(mDeviceAddress,mConnectedDeviceAddress,
-                            mBluetoothService.getName()+":\n"+content);
+
+                    // set current time
+                    Date date = Calendar.getInstance().getTime();
+
+                    // create message;
+                    mTempMessage = new ChatMessage(mDeviceAddress,mConnectedDeviceAddress,"Me:\n"+content,date) ;
+
+                    // add message to data base
+                    mDBManager.insertMessage(mTempMessage);
+
+                    //  add message to listview
+                    addMessageToConversation(mTempMessage);
                 }
                 break;
         }
     }
 
-    private void addMessageToConversation(String sender, String receiver ,String content) {
+    private void addMessageToConversation(ChatMessage chatMessage) {
 
-        // create message;
-        mTempMessage = new ChatMessage(sender,receiver,content,Calendar.getInstance());
         // add to adapter
-        mChatAdapter.add(mTempMessage);
+        mChatAdapter.add(chatMessage);
         mChatAdapter.notifyDataSetChanged();
         mListViewChat.setSelection(mListViewChat.getAdapter().getCount()-1);
     }
@@ -279,7 +360,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             // update address in adapter
             mChatAdapter.setMyAddress(mDeviceAddress);
             // restore chat history
-            restoreChatHistory(mChatDialogList,mDeviceAddress,mConnectedDeviceAddress);
+            restoreChatHistory();
 
         }
     };
@@ -287,21 +368,14 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     /**
      * TODO
      * this method will connect to dataBase and will restore the chat history between the two device
-     * @param mChatDialogList
-     * @param mDeviceAddress
-     * @param mConnectedDeviceAddress
      */
-    private void restoreChatHistory(ArrayList<ChatMessage> mChatDialogList, String mDeviceAddress, String mConnectedDeviceAddress) {
+    private void restoreChatHistory() {
 
-        // Add test msg to show as history
-        mTempMessage = new ChatMessage(mDeviceAddress, mConnectedDeviceAddress, "Hi!\n this is a test",Calendar.getInstance());
-        mChatDialogList.add(mTempMessage);
-        mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress, "Yes!\n it works!",Calendar.getInstance());
-        mChatDialogList.add(mTempMessage);
-        mTempMessage = new ChatMessage(mDeviceAddress, mConnectedDeviceAddress, "Now you can type your own messages",Calendar.getInstance());
-        mChatDialogList.add(mTempMessage);
+        ArrayList<ChatMessage> array = mDBManager.getAllMessages(mConnectedDeviceAddress);
+        mChatAdapter.add(array);
 
     }
+
 
     private void goToMainActivity() {
 
@@ -327,9 +401,19 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             switch (msg.what) {
                 case MESSAGE_READ:
                     String content = msg.getData().getString("string");
-                    addMessageToConversation(mConnectedDeviceAddress,mDeviceAddress,content);
+
+                    // set current time
+                     Date date = Calendar.getInstance().getTime();
+                    // create message;
+                    mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress,content,date) ;
+
+                    mDBManager.insertMessage(mTempMessage);
+
+                    addMessageToConversation(mTempMessage);
+
                     // notify message arrived
                     notifyMessageArrived(content);
+
                     break;
                 default:
                     super.handleMessage(msg);
@@ -381,22 +465,47 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
      */
 
     public void notifyMessageArrived(String content){
-        //Define Notification Manager
-        NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        //Define sound URI
-        Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
-        android.support.v4.app.NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext())
-                .setSmallIcon(R.drawable.ic_bluetooth_black_24dp)
-                .setContentTitle("Chat42")
-                .setContentText(content)
-                .setDefaults(Notification.DEFAULT_ALL)
-                .setVisibility(VISIBILITY_PUBLIC)
-                .setPriority(Notification.PRIORITY_HIGH)
-                .setSound(soundUri); //This sets the sound to play
-        //Display notification
-        notificationManager.notify(0, mBuilder.build());
+            //Define Notification Manager
+            NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+
+            //Define sound URI
+            Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        if (!mIsInFront) {
+
+            // set notification
+            Intent notificationIntent = new Intent(this, ChatActivity.class);
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+            PendingIntent intent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+            NotificationCompat.Builder mBuilder = (NotificationCompat.Builder) new NotificationCompat.Builder(getApplicationContext())
+                    .setSmallIcon(R.drawable.bluetooth_logo)
+                    .setContentTitle("Chat42")
+                    .setContentText(content)
+                    .setDefaults(Notification.DEFAULT_ALL)
+                    .setVisibility(VISIBILITY_PUBLIC)
+                    .setPriority(Notification.PRIORITY_HIGH)
+                    .setSound(soundUri)
+                    .setContentIntent(intent);
+                    //.setFullScreenIntent(intent,true); //This sets the sound to play
+
+
+
+            //notification.setLatestEventInfo(context, title, message, intent);
+            //notification.flags |= Notification.FLAG_AUTO_CANCEL;
+
+            //Display notification
+            notificationManager.notify(0, mBuilder.build());
+        }
+        else{
+            NotificationCompat.Builder mBuilder = (NotificationCompat.Builder) new NotificationCompat.Builder(getApplicationContext())
+                    .setSound(soundUri); //This sets the sound to play
+            //Display notification
+            notificationManager.notify(0, mBuilder.build());
+        }
     }
 
     /**

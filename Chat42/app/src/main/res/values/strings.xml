@@ -4,8 +4,9 @@
     <string name="action_logout">Log Out</string>
     <string name="action_icon">action_icon</string>
     <string name="title_hello_user">Hello user!</string>
-    <string name="chat_history">Chat history</string>
+    <string name="chat_history">Clear chat history</string>
     <string name="action_exit">Exit</string>
     <string name="ok">ok</string>
     <string name="cancel">cancel</string>
+    <string name="action_icon_profile">action_profile</string>
 </resources>

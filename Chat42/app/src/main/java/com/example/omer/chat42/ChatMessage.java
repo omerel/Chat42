@@ -1,5 +1,6 @@
 package com.example.omer.chat42;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -12,9 +13,9 @@ public class ChatMessage {
     private String mSenderAddress;
     private String mReceiverAddress;
     private String mMessage;
-    private Calendar mDateTime;
+    private Date mDateTime;
 
-    public ChatMessage(String mSenderAddress, String mReceiverAddress, String message, Calendar mDateTime) {
+    public ChatMessage(String mSenderAddress, String mReceiverAddress, String message, Date mDateTime) {
         this.mSenderAddress = mSenderAddress;
         this.mReceiverAddress = mReceiverAddress;
         this.mMessage = message;
@@ -45,11 +46,11 @@ public class ChatMessage {
         this.mMessage = mMessage;
     }
 
-    public Calendar getDateTime() {
+    public Date getDateTime() {
         return mDateTime;
     }
 
-    public void setDateTime(Calendar mDateTime) {
+    public void setDateTime(Date mDateTime) {
         this.mDateTime = mDateTime;
     }
 }

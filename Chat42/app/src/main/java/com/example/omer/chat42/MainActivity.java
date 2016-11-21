@@ -55,8 +55,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
     private static Messenger mServiceMessenger;
 
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -78,6 +76,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             changeUIToBluetoothMode();
         else
             changeUIToWifiMode();
+    }
+
+
+    @Override
+    public void onBackPressed() {
     }
 
     /**
@@ -106,8 +109,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // register Messenger in the service
             registerToServiceMessenger();
-
-
         }
 
     };
@@ -167,9 +168,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return true;
 
             // Log out from the current user
+            case R.id.action_mode_logo:
+                Toast.makeText(this,"Bluetooth working", Toast.LENGTH_SHORT).show();
+                return true;
+
+            // Log out from the current user
             case R.id.action_chat_history:
                 //TODO
-                Toast.makeText(this,"Replace me!", Toast.LENGTH_SHORT).show();
                 return true;
 
             // Log out from the current user
@@ -197,6 +202,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // Inflate the menu; this adds items to the action bar if it is present.
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu, menu);
+
+        // Update menu titles and icons
+        MenuItem menuIconMode = menu.findItem(R.id.action_mode_logo);
+        menuIconMode.setIcon(R.drawable.bluetooth_signal);
+
+        menu.findItem(R.id.action_profile).setVisible(false);
+        menu.findItem(R.id.action_chat_history).setVisible(false);
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -209,7 +222,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // setup toolbar
         Toolbar mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(mMyToolbar);
-
         getSupportActionBar().setTitle("Hello "+mUserName);
 
         // Bind layout's view to class

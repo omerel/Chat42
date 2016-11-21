@@ -2,10 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+
     <item
-        android:id="@+id/action_mode"
+        android:id="@+id/action_profile"
+        android:title="@string/action_icon_profile"
+        android:icon="@drawable/boy"
+        app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_mode_logo"
         android:title="@string/action_icon"
-        android:icon="@drawable/ic_bluetooth_black_24dp"
+        android:icon="@drawable/bluetooth_signal"
         app:showAsAction="always"/>
 
     <item android:id="@+id/action_settings"

@@ -11,14 +11,16 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 /**
  * Created by omer on 19/11/2016.
  */
 
-public class ChatAdapter extends BaseAdapter {
+public class ChatAdapter extends BaseAdapter implements Constants {
 
     private Activity context;
     private final List<ChatMessage> chatMessages;
@@ -71,9 +73,9 @@ public class ChatAdapter extends BaseAdapter {
         //to simulate whether it me or other sender
         setAlignment(holder,myMsg);
         holder.txtMessage.setText(chatMessage.getMessage());
-        String time = String.valueOf(chatMessage.getDateTime().get(Calendar.HOUR))+":"+
-                String.valueOf(chatMessage.getDateTime().get(Calendar.MINUTE));
-        holder.txtInfo.setText(time);
+        SimpleDateFormat sdf = new SimpleDateFormat(TIME_TEMPLATE);
+        String date = sdf.format(chatMessage.getDateTime());
+        holder.txtInfo.setText(date);
         return convertView;
     }
 
