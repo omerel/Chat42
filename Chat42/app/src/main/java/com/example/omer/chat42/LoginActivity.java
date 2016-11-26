@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -276,14 +277,11 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
             case GALLERY:
                 if (data != null) {
                     try {
-                        // get data and convert it to inputstream
-                        InputStream inputStream = this.getContentResolver().openInputStream(data.getData());
+                        // get uri from result
+                        Uri selectedImage = data.getData();
 
-                        // buffer it
-                        BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
-
-                        // convert ti bitmap image
-                        mProfilePicture = BitmapFactory.decodeStream(bufferedInputStream);
+                        // decode it to picture
+                        mProfilePicture = decodeUri(selectedImage);
 
                         // bind with view
                         mImageButtonPicture.setImageBitmap(mProfilePicture);
@@ -294,6 +292,34 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                 }
                 break;
         }
+    }
+    /**
+     * Decode the picture from uri and return bitmap picture with required  to prevent out of memory
+     * problem
+     */
+    private Bitmap decodeUri(Uri selectedImage) throws FileNotFoundException {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        BitmapFactory.decodeStream(
+                getContentResolver().openInputStream(selectedImage), null, o);
+
+        final int REQUIRED_SIZE = 100;
+
+        int width_tmp = o.outWidth, height_tmp = o.outHeight;
+        int scale = 1;
+        while (true) {
+            if (width_tmp / 2 < REQUIRED_SIZE || height_tmp / 2 < REQUIRED_SIZE) {
+                break;
+            }
+            width_tmp /= 2;
+            height_tmp /= 2;
+            scale *= 2;
+        }
+
+        BitmapFactory.Options o2 = new BitmapFactory.Options();
+        o2.inSampleSize = scale;
+        return BitmapFactory.decodeStream(
+                getContentResolver().openInputStream(selectedImage), null, o2);
     }
 
 }

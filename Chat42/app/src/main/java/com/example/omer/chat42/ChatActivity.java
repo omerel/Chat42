@@ -17,6 +17,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -34,13 +35,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -56,6 +56,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private ListView mListViewChat;
 
     // fileds
+    private Toolbar mMyToolbar;
     private String mDeviceAddress;
     private String mConnectedDeviceAddress;
     private static BroadcastReceiver mReceiver;
@@ -64,15 +65,17 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private static BluetoothService mBluetoothService;
     private String mUserName;
     private String mConnectedName;
+    private int mConnectedGender;
     private ChatMessage mTempMessage;
     private ChatAdapter mChatAdapter;
     private ArrayList<ChatMessage> mChatDialogList;
     private boolean mIsInFront;
     private DBManager mDBManager;
-    private boolean mIsProfilePicAvailable;
-    private boolean mIsProfileMale;
+    private int mGender;
     private Bitmap mProfilePicture;
+    private Bitmap mConnectedProfilePicture;
     private Bitmap mTempPicture; // save the picture from actionResult
+    private boolean isFirstPicturReceived = true;  // to define between profile picture to msgPic
 
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
     private static Messenger mServiceMessenger;
@@ -86,9 +89,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         Intent intent = new Intent(this, BluetoothService.class);
         startService(intent);
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
-
-        // General init
-        generalInit();
     }
 
     @Override
@@ -111,13 +111,12 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
         // Set profile picture
         // TODO get extra picture
-        mIsProfilePicAvailable = false;
-        mIsProfileMale = true;
+        mConnectedProfilePicture = null;
 
         loadSharedPreferences();
 
         // setup toolbar
-        Toolbar mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+        mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(mMyToolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
@@ -137,6 +136,9 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mChatAdapter = new ChatAdapter(this,mChatDialogList);
         mListViewChat.setAdapter(mChatAdapter);
 
+        // update address in adapter
+        mChatAdapter.setMyAddress(mDeviceAddress);
+
         // Set on click listener
         mSendButton.setOnClickListener(this);
         mSendPicture.setOnClickListener(this);
@@ -147,6 +149,8 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         // setup Data base
         mDBManager = new DBManager(this);
 
+        // restore chat history
+        restoreChatHistory();
 
         // register to Receiver
         mIntentFilter = new IntentFilter();
@@ -158,21 +162,21 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         registerReceiver(mReceiver,mIntentFilter);
+
+        // wait 1 second and the send profile picture (because handler not ready yet)
+        Delay start = new Delay(this);
+        start.execute();
+
     }
 
 
     private void loadSharedPreferences() {
         SharedPreferences sharedPref = getSharedPreferences(SHARED_PREFERENCE, 0);
-        mConnectedName = sharedPref.getString("DEVICE_CONNECTED_NAME", "user");
-        int gender = sharedPref.getInt("GENDER", MALE);
+       // mConnectedName = sharedPref.getString("DEVICE_CONNECTED_NAME", "user");
+        mGender = sharedPref.getInt("GENDER", MALE);
         mUserName = sharedPref.getString("NAME","user");
-
-        mIsProfileMale = (gender == MALE);
-
         mProfilePicture = getIntent().getParcelableExtra("IMAGE");
-        if (mProfilePicture != null)
-            mIsProfilePicAvailable = true;
-
+        getDeviceNameAndGender();
     }
         /**
          *  Create  Exit alert dialog
@@ -201,15 +205,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     }
 
     private void openDialogWithPicture(){
-
         // TODO
         AlertDialog.Builder builderType = new AlertDialog.Builder(this);
-        builderType.setTitle("user picture");
+        builderType.setTitle(mConnectedName+" picture :");
         LayoutInflater factory = LayoutInflater.from(this);
-        final View view = factory.inflate(R.layout.profile_picture, null);
+        final View view = factory.inflate(R.layout.profile_picture,null);
+        ImageView im = (ImageView)view.findViewById(R.id.imageButtonProfile);
+        im.setImageBitmap(mConnectedProfilePicture);
         builderType.setView(view);
-        builderType.setNeutralButton("Here!", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dlg, int sumthin) {
+        builderType.setNeutralButton("Close", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dlg, int something) {
             }
         });
         builderType.show();
@@ -271,23 +276,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         MenuItem menuIconMode = menu.findItem(R.id.action_mode_logo);
         menuIconMode.setIcon(R.drawable.bluetooth_connected);
 
-        if (mIsProfilePicAvailable){
-            if (mIsProfileMale)
-                menu.findItem(R.id.action_profile).setIcon(R.drawable.boy_pic);
-            else
-                menu.findItem(R.id.action_profile).setIcon(R.drawable.gitl_pic);
-        }
+        if (mConnectedGender == MALE)
+            menu.findItem(R.id.action_profile).setIcon(R.drawable.boy);
         else
-            if (mIsProfileMale)
-                menu.findItem(R.id.action_profile).setIcon(R.drawable.boy);
-            else
-                menu.findItem(R.id.action_profile).setIcon(R.drawable.girl);
-
+            menu.findItem(R.id.action_profile).setIcon(R.drawable.girl);
 
 
         return super.onCreateOptionsMenu(menu);
-
     }
+
+
 
     /**
      * Listener to the menu
@@ -299,11 +297,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             // show profile picture
             case R.id.action_profile:
                 //TODO
-                if (mIsProfilePicAvailable)
-                    //Toast.makeText(this, "Open picture", Toast.LENGTH_SHORT).show();
                     openDialogWithPicture();
-                else
-                    createGenralAlertDialog(mConnectedName + " didn't share his/her picture");
                 return true;
 
             // show icon status
@@ -401,10 +395,9 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             // get devices addresses
             mDeviceAddress = mBluetoothService.getAddress();
             mConnectedDeviceAddress = mBluetoothService.getConnectedAddress();
-            // update address in adapter
-            mChatAdapter.setMyAddress(mDeviceAddress);
-            // restore chat history
-            restoreChatHistory();
+
+            // General init
+            generalInit();
 
         }
     };
@@ -467,18 +460,17 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 case MESSAGE_READ:
                     String content = msg.getData().getString("string");
 
-                    // set current time
-                     Date date = Calendar.getInstance().getTime();
-                    // create message;
-                    mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress,mConnectedName+":\n   "+content,null,date) ;
+                        // set current time
+                        Date date = Calendar.getInstance().getTime();
+                        // create message;
+                        mTempMessage = new ChatMessage(mConnectedDeviceAddress, mDeviceAddress, mConnectedName + ":\n   " + content, null, date);
 
-                    mDBManager.insertMessage(mTempMessage);
+                        mDBManager.insertMessage(mTempMessage);
 
-                    addMessageToConversation(mTempMessage);
+                        addMessageToConversation(mTempMessage);
 
-                    // notify message arrived
-                    notifyMessageArrived(content);
-
+                        // notify message arrived
+                        notifyMessageArrived(content);
                     break;
 
                 case PICTURE_READ:
@@ -487,19 +479,26 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
                     Bitmap picture =  getBitmapFromBytes(picContent);
 
-                    // set current time
-                    Date datePic = Calendar.getInstance().getTime();
+                    if (isFirstPicturReceived){
+                        // Set picture on profile picture
+                        mConnectedProfilePicture = picture ;
 
-                    // create message;
-                    mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress,mConnectedName+":",picture,datePic) ;
+                        isFirstPicturReceived = false;
+                    }
+                    else {
+                        // set current time
+                        Date datePic = Calendar.getInstance().getTime();
 
-                    //mDBManager.insertMessage(mTempMessage);
+                        // create message;
+                        mTempMessage = new ChatMessage(mConnectedDeviceAddress, mDeviceAddress, mConnectedName + ":" , picture, datePic);
 
-                    addMessageToConversation(mTempMessage);
+                        //mDBManager.insertMessage(mTempMessage);
 
-                    // notify message arrived
-                    notifyMessageArrived("Picture arrived");
+                        addMessageToConversation(mTempMessage);
 
+                        // notify message arrived
+                        notifyMessageArrived("Picture arrived");
+                    }
                     break;
                 default:
                     super.handleMessage(msg);
@@ -544,16 +543,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     // convert from bitmap to byte array
     public byte[] getBytesFromBitmap(Bitmap bitmap) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG,10,stream);
+        bitmap.compress(Bitmap.CompressFormat.JPEG,70,stream);
 
-        createGenralAlertDialog("10% -"+String.valueOf(stream.toByteArray().length));
+       // createGenralAlertDialog("10% -"+String.valueOf(stream.toByteArray().length));
 
         return stream.toByteArray();
     }
 
     public Bitmap getBitmapFromBytes(byte[] byteArray){
         Bitmap bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
-        createGenralAlertDialog("received- "+String.valueOf(byteArray.length));
+       // createGenralAlertDialog("received- "+String.valueOf(byteArray.length));
         return bitmap;
     }
 
@@ -697,14 +696,11 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             case GALLERY:
                 if (data != null) {
                     try {
-                        // get data and convert it to inputstream
-                        InputStream inputStream = this.getContentResolver().openInputStream(data.getData());
+                        // get uri from result
+                        Uri selectedImage = data.getData();
 
-                        // buffer it
-                        BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
-
-                        // convert to bitmap image
-                        Bitmap tempPic = BitmapFactory.decodeStream(bufferedInputStream);
+                        // decode it to picture
+                        Bitmap tempPic = decodeUri(selectedImage);
 
                         // Put it in the mTempPicture;
                         mTempPicture = tempPic;
@@ -714,7 +710,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                         if (mTempPicture != null){
 
                             // send message to other service
-                            //sendPictureToService(mTempPicture);
+                            sendPictureToService(mTempPicture);
 
                             // set current time
                             Date date = Calendar.getInstance().getTime();
@@ -738,5 +734,71 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         }
     }
 
+    /**
+     * Decode the picture from uri and return bitmap picture with required  to prevent out of memory
+     * problem
+     */
+    private Bitmap decodeUri(Uri selectedImage) throws FileNotFoundException {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        BitmapFactory.decodeStream(
+                getContentResolver().openInputStream(selectedImage), null, o);
 
+        final int REQUIRED_SIZE = 100;
+
+        int width_tmp = o.outWidth, height_tmp = o.outHeight;
+        int scale = 1;
+        while (true) {
+            if (width_tmp / 2 < REQUIRED_SIZE || height_tmp / 2 < REQUIRED_SIZE) {
+                break;
+            }
+            width_tmp /= 2;
+            height_tmp /= 2;
+            scale *= 2;
+        }
+
+        BitmapFactory.Options o2 = new BitmapFactory.Options();
+        o2.inSampleSize = scale;
+        return BitmapFactory.decodeStream(
+                getContentResolver().openInputStream(selectedImage), null, o2);
+    }
+
+    public class Delay extends AsyncTask<Void,Void,Void> {
+        Context context;
+        public Delay(Context context){
+            this.context = context;
+        }
+        @Override
+        protected Void doInBackground(Void[] objects) {
+            try {
+                publishProgress();
+                Thread.sleep(1000);
+            }catch (Exception ex){
+            }
+            return null;
+        }
+        @Override
+        protected void onProgressUpdate(Void... values) {
+            super.onProgressUpdate(values);
+        }
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            // update connected device with your profile picture
+            if (mProfilePicture!= null)
+                sendPictureToService(mProfilePicture);
+            else
+                sendPictureToService(BitmapFactory.decodeResource(getResources(),R.drawable.bluetooth_logo));
+            this.cancel(true);
+        }
+    }
+
+    private void getDeviceNameAndGender() {
+        String[] srtingArray = (mBluetoothService.getConnectedName()).split("_");
+        int code = Integer.valueOf(srtingArray[1]);
+        int chatType = code / 100;
+        int gender = (code / 10) % 10;
+        mConnectedGender = gender; // set connected gender
+        mConnectedName = srtingArray[2];
+    }
 }

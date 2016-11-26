@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.util.SplittableRandom;
 
 /**
  * Created by omer on 12/11/2016.
@@ -82,6 +83,10 @@ public class BluetoothService extends Service implements Constants {
 
     public String getConnectedAddress() {
         return mConnectedDevice.getAddress();
+    }
+
+    public String getConnectedName() {
+        return mConnectedDevice.getName();
     }
 
     public class MyBinder extends Binder {
@@ -423,12 +428,11 @@ public class BluetoothService extends Service implements Constants {
                     int bytesCounter = Integer.valueOf(bytesCounterMsg);
 
 
-
+                    // TODO fix it
                     // string with maximum length
-                    byte[] test =  "sdfdsfdsfdsfsdfdsfdsfdsfdsfdsfdsafdsfdsaf".getBytes();
 
                     // compare message size to decide if decode it as a simple message or as a picture
-                    if (bytesCounter < test.length) {
+                    if (bytesCounter < MAX_CHAR) {
 
                         // Read the original message
                         bytes = mmInStream.read(buffer);

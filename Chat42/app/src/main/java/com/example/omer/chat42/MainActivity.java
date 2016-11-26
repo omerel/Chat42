@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private int mChatType;
     private int mGender;
     private int mInterestIn;
+    private int mConncectedGender;
 
     private static BluetoothService mBluetoothService;
     private static boolean  mIsServiceBound = false;
@@ -213,6 +214,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mChatType = sharedPref.getInt("CHAT_TYPE",STANDART);
         mGender = sharedPref.getInt("GENDER",MALE);
         mInterestIn = sharedPref.getInt("GENDER_INTEREST",INFEMALE);
+
         // calculate search value
         mSearchValue = "chat42_"+String.valueOf(mChatType)+
                 String.valueOf(mGender)+String.valueOf(mInterestIn)+"_"+mUserName;
@@ -260,7 +262,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     mConnectedName = getConnectedName(mArrayDevices.get(position).getName());
                     Toast.makeText(getApplicationContext(),"Connecting to "+mConnectedName,
                             Toast.LENGTH_LONG).show();
-                    saveSharedPreferences();
+                    //saveSharedPreferences();
                 }
             }
         });
@@ -274,6 +276,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         SharedPreferences.Editor editor = sharedPref.edit();
 
         editor.putString("DEVICE_CONNECTED_NAME", mConnectedName);
+        editor.putInt("DEVICE_CONNECTED_GENDER", mConncectedGender);
 
         editor.commit();
     }

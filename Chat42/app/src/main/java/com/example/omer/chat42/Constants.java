@@ -12,7 +12,7 @@ public interface Constants {
     int MESSAGE_READ = 1;
     int MESSAGE_WRITE = 2;
     int PICTURE_WRITE = 3;
-    int PICTURE_READ = 3;
+    int PICTURE_READ = 4;
 
     // ChatMessage types communication between BluetoothChatService incomingHandler to activity
     int REGISTER_ACTIVITY = 11;
@@ -54,4 +54,7 @@ public interface Constants {
 
     // Shared preference
     String SHARED_PREFERENCE = "myData";
+
+
+    int MAX_CHAR = 255;
 }
