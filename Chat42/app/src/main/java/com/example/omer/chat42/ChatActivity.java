@@ -426,6 +426,8 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         finish();
 
         Intent goToMainActivity = new Intent(this,MainActivity.class);
+        // pass the image
+        goToMainActivity.putExtra("IMAGE", mProfilePicture);
         startActivity(goToMainActivity);
     }
 
@@ -492,7 +494,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                         // create message;
                         mTempMessage = new ChatMessage(mConnectedDeviceAddress, mDeviceAddress, mConnectedName + ":" , picture, datePic);
 
-                        //mDBManager.insertMessage(mTempMessage);
+                        mDBManager.insertMessage(mTempMessage);
 
                         addMessageToConversation(mTempMessage);
 
@@ -719,7 +721,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                             mTempMessage = new ChatMessage(mDeviceAddress,mConnectedDeviceAddress,"Me:",mTempPicture,date) ;
 
                             // add message to data base
-                            //mDBManager.insertMessage(mTempMessage);
+                            mDBManager.insertMessage(mTempMessage);
 
                             //  add message to listview
                             addMessageToConversation(mTempMessage);

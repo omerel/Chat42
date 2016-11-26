@@ -1,4 +1,5 @@
 package com.example.omer.chat42;
+import java.io.ByteArrayOutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -11,6 +12,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 
 
 /**
@@ -25,6 +28,7 @@ public class DBManager extends SQLiteOpenHelper implements Constants{
     public static final String COLUMN_RECEIVER = "receiver";
     public static final String COLUMN_MESSAGE = "message";
     public static final String COLUMN_DATE = "time";
+    public static final String COLUMN_IMAGE = "image";
     private HashMap hp;
 
     public DBManager(Context context) {
@@ -36,7 +40,7 @@ public class DBManager extends SQLiteOpenHelper implements Constants{
         // TODO Auto-generated method stub
         db.execSQL(
                 "create table "+TABLE+
-                        " (id integer primary key, sender text,receiver text,message text,time text)"
+                        " (id integer primary key, sender text,receiver text,message text,time text,image blob)"
         );
     }
 
@@ -54,6 +58,7 @@ public class DBManager extends SQLiteOpenHelper implements Constants{
         contentValues.put(COLUMN_SENDER, chatMessage.getSenderAddress());
         contentValues.put(COLUMN_RECEIVER, chatMessage.getReceiverAddress());
         contentValues.put(COLUMN_DATE, convertDateToString(chatMessage.getDateTime()));
+        contentValues.put(COLUMN_IMAGE, getBytes(chatMessage.getPicture()));
 
         db.insert(TABLE, null, contentValues);
     }
@@ -132,10 +137,27 @@ public class DBManager extends SQLiteOpenHelper implements Constants{
             String sender = res.getString(res.getColumnIndex(COLUMN_SENDER));
             String receiver = res.getString(res.getColumnIndex(COLUMN_RECEIVER));
             Date date = convertStringToDate(res.getString(res.getColumnIndex(COLUMN_DATE)));
-            ChatMessage tempChatMessage = new ChatMessage(sender,receiver,message,null,date);
+            Bitmap image = getImage(res.getBlob(res.getColumnIndex(COLUMN_IMAGE)));
+            ChatMessage tempChatMessage = new ChatMessage(sender,receiver,message,image,date);
             array_list.add(tempChatMessage);
             res.moveToNext();
         }
         return array_list;
+    }
+
+    // convert from bitmap to byte array
+    public  byte[] getBytes(Bitmap bitmap) {
+        if (bitmap == null)
+            return null;
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 0, stream);
+        return stream.toByteArray();
+    }
+
+    // convert from byte array to bitmap
+    public  Bitmap getImage(byte[] image) {
+        if (image == null)
+            return null;
+        return BitmapFactory.decodeByteArray(image, 0, image.length);
     }
 }

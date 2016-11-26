@@ -119,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Intent intent = new Intent(this, BluetoothService.class);
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
         mIsServiceBound = true;
+        loadSharedPreferences();
     }
 
     @Override
@@ -262,24 +263,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     mConnectedName = getConnectedName(mArrayDevices.get(position).getName());
                     Toast.makeText(getApplicationContext(),"Connecting to "+mConnectedName,
                             Toast.LENGTH_LONG).show();
-                    //saveSharedPreferences();
                 }
             }
         });
     }
 
-
-    private void saveSharedPreferences(){
-
-        // use SharedPreferences pass all string and int data
-        SharedPreferences sharedPref = getSharedPreferences(SHARED_PREFERENCE, 0);
-        SharedPreferences.Editor editor = sharedPref.edit();
-
-        editor.putString("DEVICE_CONNECTED_NAME", mConnectedName);
-        editor.putInt("DEVICE_CONNECTED_GENDER", mConncectedGender);
-
-        editor.commit();
-    }
 
     /**
      * Initilaize the bluetooth connection

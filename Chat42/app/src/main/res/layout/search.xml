@@ -4,18 +4,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:paddingTop="20dp">
 
     <Button
         android:text="search"
-        android:layout_width="wrap_content"
+        android:layout_width="100dp"
         android:layout_height="wrap_content"
         android:id="@+id/button_search"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         android:layout_marginTop="16dp"
         app:layout_constraintTop_toTopOf="parent"
-        android:textSize="20sp" />
+        android:textSize="20dp"
+        android:textColor="@android:color/background_light"
+        android:background="@android:color/holo_red_dark"/>
 
     <TextView
         android:text="Available devices:"
@@ -26,20 +29,24 @@
         app:layout_constraintLeft_toLeftOf="parent"
         android:layout_marginEnd="16dp"
         app:layout_constraintRight_toRightOf="parent"
-        android:textSize="20sp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/button_search" />
+        android:layout_marginTop="40dp"
+        app:layout_constraintTop_toBottomOf="@+id/button_search"
+        android:textSize="24dp"
 
+        android:textColor="@android:color/background_light" />
 
 
     <ListView
         android:id="@+id/listview_available_devices"
         android:layout_width="350dp"
         app:layout_constraintRight_toRightOf="parent"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@+id/textView_available_users"
         app:layout_constraintLeft_toLeftOf="parent"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_height="250dp" />
+        android:layout_height="250dp"
+        android:textSize="24dp"
+        android:textColor="@android:color/background_light"
+        app:layout_constraintHorizontal_bias="0.47" />
 </android.support.constraint.ConstraintLayout>
