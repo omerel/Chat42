@@ -2,11 +2,14 @@ package com.example.omer.chat42;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -72,7 +75,17 @@ public class ChatAdapter extends BaseAdapter implements Constants {
         boolean myMsg = deviceAddress.equals(chatMessage.getSenderAddress());
         //to simulate whether it me or other sender
         setAlignment(holder,myMsg);
+
         holder.txtMessage.setText(chatMessage.getMessage());
+
+        if (chatMessage.getPicture() != null){
+            holder.picture.setImageBitmap(chatMessage.getPicture());
+            holder.picture.setVisibility(View.VISIBLE);
+        }
+        else{
+            holder.picture.setVisibility(View.GONE);
+        }
+
         SimpleDateFormat sdf = new SimpleDateFormat(TIME_TEMPLATE);
         String date = sdf.format(chatMessage.getDateTime());
         holder.txtInfo.setText(date);
@@ -108,10 +121,12 @@ public class ChatAdapter extends BaseAdapter implements Constants {
             layoutParams = (LinearLayout.LayoutParams) holder.txtMessage.getLayoutParams();
             layoutParams.gravity = Gravity.LEFT;
             holder.txtMessage.setLayoutParams(layoutParams);
-
             layoutParams = (LinearLayout.LayoutParams) holder.txtInfo.getLayoutParams();
             layoutParams.gravity = Gravity.RIGHT;
             holder.txtInfo.setLayoutParams(layoutParams);
+
+            layoutParams = (LinearLayout.LayoutParams) holder.picture.getLayoutParams();
+            holder.picture.setLayoutParams(layoutParams);
         } else {
             holder.contentBubble.setBackgroundResource(R.drawable.bubble_left);
 
@@ -129,9 +144,15 @@ public class ChatAdapter extends BaseAdapter implements Constants {
             layoutParams.gravity = Gravity.LEFT;
             holder.txtMessage.setLayoutParams(layoutParams);
 
+
             layoutParams = (LinearLayout.LayoutParams) holder.txtInfo.getLayoutParams();
             layoutParams.gravity = Gravity.RIGHT;
             holder.txtInfo.setLayoutParams(layoutParams);
+
+            layoutParams = (LinearLayout.LayoutParams) holder.picture.getLayoutParams();
+            holder.picture.setLayoutParams(layoutParams);
+
+
         }
     }
 
@@ -141,6 +162,7 @@ public class ChatAdapter extends BaseAdapter implements Constants {
         holder.content = (LinearLayout) v.findViewById(R.id.item_chat_content);
         holder.contentBubble = (LinearLayout) v.findViewById(R.id.item_chat_bubble);
         holder.txtInfo = (TextView) v.findViewById(R.id.text_view_msg_info);
+        holder.picture = (ImageView)v.findViewById(R.id.imageView_item_chat);
         return holder;
     }
 
@@ -149,5 +171,6 @@ public class ChatAdapter extends BaseAdapter implements Constants {
         public TextView txtInfo;
         public LinearLayout content;
         public LinearLayout contentBubble;
+        public ImageView picture;
     }
 }

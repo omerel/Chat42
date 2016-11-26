@@ -12,6 +12,9 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,6 +27,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -33,6 +37,10 @@ import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -42,9 +50,9 @@ import static android.app.Notification.VISIBILITY_PUBLIC;
 public class ChatActivity extends AppCompatActivity  implements View.OnClickListener,Constants {
 
     // Layout's views
-    private Toolbar mMyToolbar;
     private EditText mCommandChat;
     private ImageButton mSendButton;
+    private ImageButton mSendPicture;
     private ListView mListViewChat;
 
     // fileds
@@ -55,13 +63,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private boolean mServiceBound = false;
     private static BluetoothService mBluetoothService;
     private String mUserName;
+    private String mConnectedName;
     private ChatMessage mTempMessage;
     private ChatAdapter mChatAdapter;
     private ArrayList<ChatMessage> mChatDialogList;
     private boolean mIsInFront;
     private DBManager mDBManager;
     private boolean mIsProfilePicAvailable;
-    private boolean mIsProfileBoy;
+    private boolean mIsProfileMale;
+    private Bitmap mProfilePicture;
+    private Bitmap mTempPicture; // save the picture from actionResult
 
     protected final Messenger mMessenger = new Messenger(new IncomingHandler());
     private static Messenger mServiceMessenger;
@@ -70,8 +81,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
-
-        mUserName =  getIntent().getStringExtra("USER");
 
         // start bluetooth service and bind it to this activity
         Intent intent = new Intent(this, BluetoothService.class);
@@ -103,20 +112,23 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         // Set profile picture
         // TODO get extra picture
         mIsProfilePicAvailable = false;
-        mIsProfileBoy = true;
+        mIsProfileMale = true;
+
+        loadSharedPreferences();
 
         // setup toolbar
-        mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+        Toolbar mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(mMyToolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        getSupportActionBar().setTitle("Chat with "+mUserName);
+        getSupportActionBar().setTitle("Chat with "+mConnectedName);
 
 
         // Bind layout's view to class
         mCommandChat = (EditText)findViewById(R.id.editText_command_chat);
         mSendButton = (ImageButton)findViewById(R.id.imageButton_send_msg);
         mListViewChat = (ListView)findViewById(R.id.listview_chat);
+        mSendPicture = (ImageButton)findViewById(R.id.imageButton_send_pic);
 
 
         // Init ChatDialog list
@@ -127,6 +139,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
         // Set on click listener
         mSendButton.setOnClickListener(this);
+        mSendPicture.setOnClickListener(this);
 
         // Create a BroadcastReceiver
         createBroadcastReceiver();
@@ -147,9 +160,23 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         registerReceiver(mReceiver,mIntentFilter);
     }
 
-    /**
-     *  Create  Exit alert dialog
-     */
+
+    private void loadSharedPreferences() {
+        SharedPreferences sharedPref = getSharedPreferences(SHARED_PREFERENCE, 0);
+        mConnectedName = sharedPref.getString("DEVICE_CONNECTED_NAME", "user");
+        int gender = sharedPref.getInt("GENDER", MALE);
+        mUserName = sharedPref.getString("NAME","user");
+
+        mIsProfileMale = (gender == MALE);
+
+        mProfilePicture = getIntent().getParcelableExtra("IMAGE");
+        if (mProfilePicture != null)
+            mIsProfilePicAvailable = true;
+
+    }
+        /**
+         *  Create  Exit alert dialog
+         */
     private AlertDialog createExitAlertDialog() {
 
         AlertDialog alertDialog = new AlertDialog.Builder(this).create();
@@ -171,6 +198,21 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                 });
         alertDialog.show();
         return alertDialog;
+    }
+
+    private void openDialogWithPicture(){
+
+        // TODO
+        AlertDialog.Builder builderType = new AlertDialog.Builder(this);
+        builderType.setTitle("user picture");
+        LayoutInflater factory = LayoutInflater.from(this);
+        final View view = factory.inflate(R.layout.profile_picture, null);
+        builderType.setView(view);
+        builderType.setNeutralButton("Here!", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dlg, int sumthin) {
+            }
+        });
+        builderType.show();
     }
 
     /**
@@ -229,14 +271,14 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         MenuItem menuIconMode = menu.findItem(R.id.action_mode_logo);
         menuIconMode.setIcon(R.drawable.bluetooth_connected);
 
-        if (!mIsProfilePicAvailable){
-            if (mIsProfileBoy)
+        if (mIsProfilePicAvailable){
+            if (mIsProfileMale)
                 menu.findItem(R.id.action_profile).setIcon(R.drawable.boy_pic);
             else
                 menu.findItem(R.id.action_profile).setIcon(R.drawable.gitl_pic);
         }
         else
-            if (mIsProfileBoy)
+            if (mIsProfileMale)
                 menu.findItem(R.id.action_profile).setIcon(R.drawable.boy);
             else
                 menu.findItem(R.id.action_profile).setIcon(R.drawable.girl);
@@ -258,22 +300,23 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             case R.id.action_profile:
                 //TODO
                 if (mIsProfilePicAvailable)
-                    Toast.makeText(this, "Open picture", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(this, "Open picture", Toast.LENGTH_SHORT).show();
+                    openDialogWithPicture();
                 else
-                    createGenralAlertDialog(mUserName + " didn't share his/her picture");
+                    createGenralAlertDialog(mConnectedName + " didn't share his/her picture");
                 return true;
 
             // show icon status
             case R.id.action_mode_logo:
-                    Toast.makeText(this, "You are connected to "+mUserName, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "You are connected to "+mConnectedName, Toast.LENGTH_SHORT).show();
                 return true;
 
             case R.id.action_settings:
                 //TODO
-                Toast.makeText(this, "Replace me!", Toast.LENGTH_SHORT).show();
+                goToSettingActivity();
                 return true;
 
-            // Log out from the current user
+            // Clear chat history
             case R.id.action_chat_history:
                 mDBManager.deleteAllMessages(mConnectedDeviceAddress);
                 mChatDialogList.clear();
@@ -282,8 +325,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
             // Log out from the current user
             case R.id.action_logout:
-                //TODO
-                Toast.makeText(this, "Replace me!", Toast.LENGTH_SHORT).show();
+                logOut();
                 return true;
 
             // go back;
@@ -315,7 +357,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                     Date date = Calendar.getInstance().getTime();
 
                     // create message;
-                    mTempMessage = new ChatMessage(mDeviceAddress,mConnectedDeviceAddress,"Me:\n"+content,date) ;
+                    mTempMessage = new ChatMessage(mDeviceAddress,mConnectedDeviceAddress,"Me:\n    "+content,null,date) ;
 
                     // add message to data base
                     mDBManager.insertMessage(mTempMessage);
@@ -323,6 +365,9 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                     //  add message to listview
                     addMessageToConversation(mTempMessage);
                 }
+                break;
+            case (R.id.imageButton_send_pic):
+                getPictureFromGallery();
                 break;
         }
     }
@@ -334,7 +379,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mChatAdapter.notifyDataSetChanged();
         mListViewChat.setSelection(mListViewChat.getAdapter().getCount()-1);
     }
-
 
     /**
      *  Create bounding between service class to this activity
@@ -392,6 +436,27 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         startActivity(goToMainActivity);
     }
 
+    private void logOut() {
+
+        sendRequestToService(CLOSE_SOCKET);
+
+        unregisterReceiver(mReceiver);
+
+        unbindService(mServiceConnection);
+        mServiceBound = false;
+
+        finish();
+
+        Intent goToMainActivity = new Intent(this,LoginActivity.class);
+        startActivity(goToMainActivity);
+    }
+
+    private void goToSettingActivity() {
+        Intent goToSettingActivity = new Intent(this,SettingActivity.class);
+        goToSettingActivity.putExtra("ACTIVITY","chat");
+        startActivity(goToSettingActivity);
+    }
+
     /**
      * Handler of incoming messages from service
      */
@@ -405,7 +470,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                     // set current time
                      Date date = Calendar.getInstance().getTime();
                     // create message;
-                    mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress,content,date) ;
+                    mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress,mConnectedName+":\n   "+content,null,date) ;
 
                     mDBManager.insertMessage(mTempMessage);
 
@@ -413,6 +478,27 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
                     // notify message arrived
                     notifyMessageArrived(content);
+
+                    break;
+
+                case PICTURE_READ:
+
+                    byte[] picContent = msg.getData().getByteArray("picture");
+
+                    Bitmap picture =  getBitmapFromBytes(picContent);
+
+                    // set current time
+                    Date datePic = Calendar.getInstance().getTime();
+
+                    // create message;
+                    mTempMessage = new ChatMessage(mConnectedDeviceAddress,mDeviceAddress,mConnectedName+":",picture,datePic) ;
+
+                    //mDBManager.insertMessage(mTempMessage);
+
+                    addMessageToConversation(mTempMessage);
+
+                    // notify message arrived
+                    notifyMessageArrived("Picture arrived");
 
                     break;
                 default:
@@ -436,6 +522,39 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Send Bitmap value to service
+     */
+    private void sendPictureToService(Bitmap picMessage)  {
+
+        // Send data as a String
+        Bundle bundle = new Bundle();
+        bundle.putByteArray("picture",getBytesFromBitmap(picMessage));
+        Message msg = Message.obtain(null, PICTURE_WRITE);
+        msg.setData(bundle);
+        try {
+            mServiceMessenger.send(msg);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // convert from bitmap to byte array
+    public byte[] getBytesFromBitmap(Bitmap bitmap) {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG,10,stream);
+
+        createGenralAlertDialog("10% -"+String.valueOf(stream.toByteArray().length));
+
+        return stream.toByteArray();
+    }
+
+    public Bitmap getBitmapFromBytes(byte[] byteArray){
+        Bitmap bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
+        createGenralAlertDialog("received- "+String.valueOf(byteArray.length));
+        return bitmap;
     }
 
     /**
@@ -466,7 +585,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
     public void notifyMessageArrived(String content){
 
-
             //Define Notification Manager
             NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
 
@@ -490,12 +608,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                     .setPriority(Notification.PRIORITY_HIGH)
                     .setSound(soundUri)
                     .setContentIntent(intent);
-                    //.setFullScreenIntent(intent,true); //This sets the sound to play
-
-
-
-            //notification.setLatestEventInfo(context, title, message, intent);
-            //notification.flags |= Notification.FLAG_AUTO_CANCEL;
 
             //Display notification
             notificationManager.notify(0, mBuilder.build());
@@ -570,5 +682,61 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             }
         };
     }
+
+    public void getPictureFromGallery(){
+        Intent intent = new Intent();
+        intent.setType("image/*");
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        startActivityForResult(Intent.createChooser(intent,"Select Picture"),GALLERY);
+    }
+
+    // get result - picture from gallery
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch(requestCode){
+            case GALLERY:
+                if (data != null) {
+                    try {
+                        // get data and convert it to inputstream
+                        InputStream inputStream = this.getContentResolver().openInputStream(data.getData());
+
+                        // buffer it
+                        BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
+
+                        // convert to bitmap image
+                        Bitmap tempPic = BitmapFactory.decodeStream(bufferedInputStream);
+
+                        // Put it in the mTempPicture;
+                        mTempPicture = tempPic;
+
+                        // send it to service as msg with picture
+                        mCommandChat.setText(null);
+                        if (mTempPicture != null){
+
+                            // send message to other service
+                            //sendPictureToService(mTempPicture);
+
+                            // set current time
+                            Date date = Calendar.getInstance().getTime();
+
+                            // create message;
+                            mTempMessage = new ChatMessage(mDeviceAddress,mConnectedDeviceAddress,"Me:",mTempPicture,date) ;
+
+                            // add message to data base
+                            //mDBManager.insertMessage(mTempMessage);
+
+                            //  add message to listview
+                            addMessageToConversation(mTempMessage);
+
+                        }
+
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+        }
+    }
+
 
 }

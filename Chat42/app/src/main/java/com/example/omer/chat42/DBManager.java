@@ -132,7 +132,7 @@ public class DBManager extends SQLiteOpenHelper implements Constants{
             String sender = res.getString(res.getColumnIndex(COLUMN_SENDER));
             String receiver = res.getString(res.getColumnIndex(COLUMN_RECEIVER));
             Date date = convertStringToDate(res.getString(res.getColumnIndex(COLUMN_DATE)));
-            ChatMessage tempChatMessage = new ChatMessage(sender,receiver,message,date);
+            ChatMessage tempChatMessage = new ChatMessage(sender,receiver,message,null,date);
             array_list.add(tempChatMessage);
             res.moveToNext();
         }

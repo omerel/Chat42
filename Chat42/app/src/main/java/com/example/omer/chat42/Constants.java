@@ -11,7 +11,8 @@ public interface Constants {
     // ChatMessage types communication between two Bluetooth devices
     int MESSAGE_READ = 1;
     int MESSAGE_WRITE = 2;
-    int MESSAGE_DEVICE_NAME = 3;
+    int PICTURE_WRITE = 3;
+    int PICTURE_READ = 3;
 
     // ChatMessage types communication between BluetoothChatService incomingHandler to activity
     int REGISTER_ACTIVITY = 11;
@@ -37,4 +38,20 @@ public interface Constants {
     // DataBase name
     String DATABASE_NAME = "chat42.db";
     String TIME_TEMPLATE = "DD/MM/yyyy  hh:mm:ss";
+
+    // Code intents
+    int CAMERA = 30;
+    int GALLERY = 31;
+
+    // Login const
+    int MALE = 1;
+    int FEMALE = 2;
+    int INMALE = 3;
+    int INFEMALE = 4;
+    int STANDART = 5;
+    int RIDE = 6;
+    int BAR = 7;
+
+    // Shared preference
+    String SHARED_PREFERENCE = "myData";
 }

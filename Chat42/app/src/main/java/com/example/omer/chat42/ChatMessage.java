@@ -1,5 +1,7 @@
 package com.example.omer.chat42;
 
+import android.graphics.Bitmap;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -13,17 +15,24 @@ public class ChatMessage {
     private String mSenderAddress;
     private String mReceiverAddress;
     private String mMessage;
+    private Bitmap mPicture;
     private Date mDateTime;
 
-    public ChatMessage(String mSenderAddress, String mReceiverAddress, String message, Date mDateTime) {
+    public ChatMessage(String mSenderAddress, String mReceiverAddress, String message,Bitmap picture, Date mDateTime) {
         this.mSenderAddress = mSenderAddress;
         this.mReceiverAddress = mReceiverAddress;
         this.mMessage = message;
         this.mDateTime = mDateTime;
+        this.mPicture = picture;
     }
+
 
     public String getSenderAddress() {
         return mSenderAddress;
+    }
+
+    public Bitmap getPicture() {
+        return mPicture;
     }
 
     public void setSenderAddress(String mSenderAddress) {

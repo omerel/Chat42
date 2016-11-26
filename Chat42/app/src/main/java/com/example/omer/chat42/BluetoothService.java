@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,9 +14,11 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.util.Base64;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -311,6 +314,10 @@ public class BluetoothService extends Service implements Constants {
                     String content = msg.getData().getString("string");
                     mConversationThread.write(content.getBytes());
                 break;
+                case PICTURE_WRITE:
+                    byte[] picContent = msg.getData().getByteArray("picture");
+                    mConversationThread.write(picContent);
+                    break;
                 default:
                     super.handleMessage(msg);
             }
@@ -326,6 +333,24 @@ public class BluetoothService extends Service implements Constants {
         Bundle bundle = new Bundle();
         bundle.putString("string",message);
         Message msg = Message.obtain(null, MESSAGE_READ);
+        msg.setData(bundle);
+        try {
+            mActivityMessenger.send(msg);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+     * Send picture ChatMessage value to activity
+     */
+    private void sendPictureToActivity(byte[] picture)  {
+
+        // Send data as a String
+        Bundle bundle = new Bundle();
+        bundle.putByteArray("picture",picture);
+        Message msg = Message.obtain(null, PICTURE_READ);
         msg.setData(bundle);
         try {
             mActivityMessenger.send(msg);
@@ -382,21 +407,50 @@ public class BluetoothService extends Service implements Constants {
         }
 
         public void run() {
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[1000];
             int bytes;
 
             // Keep listening to the InputStream while connected
             while (mmSocket.isConnected()) {
                 try {
-                    // Read from the InputStream
+                    // Read from the InputStream first message
                     bytes = mmInStream.read(buffer);
-                    // Send the obtained bytes to the UI Activity
-                    byte[] readBuf = buffer;
 
-                    // construct a string from the valid bytes in the buffer
-                    String readMessage = new String(readBuf, 0, bytes);
+                    // convert buffer to string that say how many bytes in the second msg
+                    String bytesCounterMsg = new String(buffer, 0, bytes);
 
-                    sendMessageToActivity(mConnectedDevice.getName()+":\n"+readMessage);
+                    // convert message to int
+                    int bytesCounter = Integer.valueOf(bytesCounterMsg);
+
+
+
+                    // string with maximum length
+                    byte[] test =  "sdfdsfdsfdsfsdfdsfdsfdsfdsfdsfdsafdsfdsaf".getBytes();
+
+                    // compare message size to decide if decode it as a simple message or as a picture
+                    if (bytesCounter < test.length) {
+
+                        // Read the original message
+                        bytes = mmInStream.read(buffer);
+                        byte[] readBuf = buffer;
+
+                        // construct a string from the valid bytes in the buffer
+                        String readMessage = new String(readBuf, 0, bytes);
+                        // Send the obtained bytes to the UI Activity
+                        sendMessageToActivity(readMessage);
+                    }
+                    else{
+                        // TODO find out why the size is not thw right one
+
+                        byte[] pictureBuffer = new byte[bytesCounter+1024];
+                        // use byteCounter as a counter
+                        int counter = 0 ;
+                        int bufferSize  = 1024;
+                        while(bytesCounter != counter){
+                            counter+= mmInStream.read(pictureBuffer,counter,bufferSize);
+                        }
+                        sendPictureToActivity(pictureBuffer);
+                    }
 
                 } catch (IOException e) {
                     break;
@@ -411,7 +465,16 @@ public class BluetoothService extends Service implements Constants {
          */
         public void write(byte[] buffer) {
             try {
+                // get how many bytes
+                int bytes = buffer.length;
+
+                // send the size of the message
+                mmOutStream.write(String.valueOf(bytes).getBytes());
+
+                // send the original message
                 mmOutStream.write(buffer);
+
+
             } catch (IOException e) {
             }
         }

@@ -9,6 +9,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -45,10 +47,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ArrayList<BluetoothDevice> mArrayDevices;
     private ArrayAdapter<String> mArrayAdapter;
     private static BroadcastReceiver mReceiver;
-    private static int mDeviceMode;
-    private String mUserName = "user";
+    private String mUserName;
+    private String mConnectedName;
     private static IntentFilter mIntentFilter;
-
+    private String mSearchValue;
+    private Bitmap mProfilePicture;
+    private int mChatType;
+    private int mGender;
+    private int mInterestIn;
 
     private static BluetoothService mBluetoothService;
     private static boolean  mIsServiceBound = false;
@@ -68,14 +74,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // General init
         generalInit();
 
-        // Check the device state - wifi or bluetooth
-        mDeviceMode = checkState();
-
-        // initilaize the app with with device mode
-        if (mDeviceMode == BLUETOOTH_MODE)
-            changeUIToBluetoothMode();
-        else
-            changeUIToWifiMode();
     }
 
 
@@ -161,10 +159,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // Go to setting
             case R.id.action_settings:
-                //check service
-                if (mIsServiceBound)
-                    //TODO
-                    Toast.makeText(this,"Replace me!", Toast.LENGTH_SHORT).show();
+                goToSettingActivity();
                 return true;
 
             // Log out from the current user
@@ -174,13 +169,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // Log out from the current user
             case R.id.action_chat_history:
-                //TODO
+                goToChatHistoryActivity();
                 return true;
 
             // Log out from the current user
             case R.id.action_logout:
-                //TODO
-                Toast.makeText(this,"Replace me!", Toast.LENGTH_SHORT).show();
+                logOut();
                 return true;
 
             // Exit app
@@ -192,7 +186,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 // If we got here, the user's action was not recognized.
                 // Invoke the superclass to handle it.
                 return super.onOptionsItemSelected(item);
-
         }
     }
 
@@ -208,16 +201,34 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         menuIconMode.setIcon(R.drawable.bluetooth_signal);
 
         menu.findItem(R.id.action_profile).setVisible(false);
-        menu.findItem(R.id.action_chat_history).setVisible(false);
+        menu.findItem(R.id.action_chat_history).setTitle("Chat history");
 
         return super.onCreateOptionsMenu(menu);
     }
 
 
+    private void loadSharedPreferences(){
+        SharedPreferences sharedPref = getSharedPreferences(SHARED_PREFERENCE, 0);
+        mUserName = sharedPref.getString("NAME","user");
+        mChatType = sharedPref.getInt("CHAT_TYPE",STANDART);
+        mGender = sharedPref.getInt("GENDER",MALE);
+        mInterestIn = sharedPref.getInt("GENDER_INTEREST",INFEMALE);
+        // calculate search value
+        mSearchValue = "chat42_"+String.valueOf(mChatType)+
+                String.valueOf(mGender)+String.valueOf(mInterestIn)+"_"+mUserName;
+
+        // profile image from intent
+        mProfilePicture = getIntent().getParcelableExtra("IMAGE");
+
+    }
+
     /**
      * General initilaize of the activity
      */
     private void generalInit() {
+
+
+        loadSharedPreferences();
 
         // setup toolbar
         Toolbar mMyToolbar = (Toolbar) findViewById(R.id.my_toolbar);
@@ -244,12 +255,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onItemClick(AdapterView<?> parent, View view,
                                     int position, long id) {
-                Toast.makeText(MainActivity.this,"Connecting\n"+
-                        mArrayDevices.get(position).getName(), Toast.LENGTH_SHORT).show();
-                if(mIsServiceBound)
+                if(mIsServiceBound) {
                     mBluetoothService.connectToDevice(mArrayDevices.get(position));
+                    mConnectedName = getConnectedName(mArrayDevices.get(position).getName());
+                    Toast.makeText(getApplicationContext(),"Connecting to "+mConnectedName,
+                            Toast.LENGTH_LONG).show();
+                    saveSharedPreferences();
+                }
             }
         });
+    }
+
+
+    private void saveSharedPreferences(){
+
+        // use SharedPreferences pass all string and int data
+        SharedPreferences sharedPref = getSharedPreferences(SHARED_PREFERENCE, 0);
+        SharedPreferences.Editor editor = sharedPref.edit();
+
+        editor.putString("DEVICE_CONNECTED_NAME", mConnectedName);
+
+        editor.commit();
     }
 
     /**
@@ -258,8 +284,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void bluetoothInit() {
 
         //TODO check if the device is already connected to somebody else- in other app
-
-        //TODO add status line in the bottom screen
 
         // Create a BroadcastReceiver
         createBroadcastReceiver();
@@ -278,7 +302,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // Set name for user
         if (mIsServiceBound){
-            mBluetoothService.setName(mUserName);
+            mBluetoothService.setName(mSearchValue);
         }
     }
 
@@ -297,11 +321,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     case BluetoothDevice.ACTION_FOUND:
                         // Get the BluetoothDevice object from the Intent
                         BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                        // Add the name and address to an array adapter to show in a ListView
-                        mArrayAdapter.add(device.getName()+" ("+device.getAddress()+")");
-                        mArrayDevices.add(device);
-                        mArrayAdapter.notifyDataSetChanged();
-                        break;
+                        // Add devices that match user search array adapter to show in a ListView
+                        if(checkMatch(device.getName(),mSearchValue)) {
+                            String deviceName = getConnectedName(device.getName());
+                            mArrayAdapter.add(deviceName);
+                            mArrayDevices.add(device);
+                            mArrayAdapter.notifyDataSetChanged();
+                            break;
+                        }
+
 
                     // When bluetooth state changed
                     case BluetoothAdapter.ACTION_STATE_CHANGED:
@@ -355,6 +383,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         };
     }
 
+    private boolean checkMatch(String deviceName, String mSearchValue) {
+        String[] srtingArray1 = deviceName.split("_");
+        String[] srtingArray2 = mSearchValue.split("_");
+
+        // check if the device is chat42
+        if (srtingArray1[0].equals("chat42")) {
+            int code = Integer.valueOf(srtingArray1[1]);
+            int chatType = code / 100;
+            int gender = (code / 10) % 10;
+            int interestIn = code % 10;
+
+            // if it's same conversation
+            if (mChatType == chatType) {
+                if (chatType != BAR)
+                    return true;
+                if (mGender == gender && mInterestIn == interestIn)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private String getConnectedName(String deviceName) {
+        String[] srtingArray = deviceName.split("_");
+        return srtingArray[2];
+    }
+
     /**
      * Enable bluetooth if not enable
      */
@@ -375,15 +430,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if(mIsServiceBound) {
             if (mBluetoothService.isDiscovering()) {
                 // the button is pressed when it discovers, so cancel the discovery
-                if (mIsServiceBound)
-                    sendRequestToService(CANCEL_DISCOVERY);
+                sendRequestToService(CANCEL_DISCOVERY);
                 Toast.makeText(getApplicationContext(), "Stop discovering",
                         Toast.LENGTH_LONG).show();
             } else {
                 mArrayAdapter.clear();  // clear adapter
                 mArrayDevices.clear();  // clear bluetooth array devices
-                if (mIsServiceBound)
-                    sendRequestToService(START_DISCOVERY);
+                sendRequestToService(START_DISCOVERY);
                 Toast.makeText(getApplicationContext(), "Start discovering",
                         Toast.LENGTH_LONG).show();
             }
@@ -395,31 +448,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
 
-    /**
-     * Change UI to WIFI mode
-     */
-    private void changeUIToWifiMode() {
-        //TODO Change icon mode to wifi
-        // Disable beDiscoverable function
-        mDiscoverableLayout.setVisibility(View.GONE);
-    }
-
-    /**
-     * init app in bluetooth mode
-     */
-    private void changeUIToBluetoothMode() {
-        // TODO Change icon mode to bluetooth
-    }
-
-    /**
-     *  The method checks if there is available internet in the device.
-     *  if there is available internet bluetooth will set off
-     *  otherwise the app will be on bluetooth mode.
-     */
-    private int checkState() {
-        //TODO check if there is available internet
-        return BLUETOOTH_MODE;
-    }
 
     /**
      *  Make the device be
@@ -463,9 +491,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         unbindService(mServiceConnection);
         mIsServiceBound = false;
         Intent goToChatActivity = new Intent(this,ChatActivity.class);
-        goToChatActivity.putExtra("USER",mUserName);
+        // pass the image
+        goToChatActivity.putExtra("IMAGE", mProfilePicture);
         startActivity(goToChatActivity);
     }
+
+    private void goToSettingActivity() {
+        unregisterReceiver(mReceiver);
+        finish();
+        unbindService(mServiceConnection);
+        mIsServiceBound = false;
+        Intent goToSettingActivity = new Intent(this,SettingActivity.class);
+        goToSettingActivity.putExtra("ACTIVITY","main");
+        startActivity(goToSettingActivity);
+    }
+
+    private void logOut() {
+        unregisterReceiver(mReceiver);
+        finish();
+        unbindService(mServiceConnection);
+        mIsServiceBound = false;
+        Intent goToSettingActivity = new Intent(this,LoginActivity.class);
+        startActivity(goToSettingActivity);
+    }
+
+    private void goToChatHistoryActivity() {
+        unregisterReceiver(mReceiver);
+        finish();
+        unbindService(mServiceConnection);
+        mIsServiceBound = false;
+        Intent goToChatHistoryActivity = new Intent(this,ChatHistoryUserListActivity.class);
+        goToChatHistoryActivity.putExtra("ACTIVITY","main");
+        startActivity(goToChatHistoryActivity);
+    }
+
 
     /**
      * Handler of incoming messages from service
@@ -509,6 +568,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         dialog.dismiss();
+                        unregisterReceiver(mReceiver);
                         finish();
                         System.exit(0);
                     }
