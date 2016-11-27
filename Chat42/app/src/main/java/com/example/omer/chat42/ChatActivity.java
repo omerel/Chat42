@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.database.DataSetObserver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.RingtoneManager;
@@ -33,9 +34,12 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -89,6 +93,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         Intent intent = new Intent(this, BluetoothService.class);
         startService(intent);
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
+
     }
 
     @Override
@@ -122,18 +127,17 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         getSupportActionBar().setTitle("Chat with "+mConnectedName);
 
-
         // Bind layout's view to class
         mCommandChat = (EditText)findViewById(R.id.editText_command_chat);
         mSendButton = (ImageButton)findViewById(R.id.imageButton_send_msg);
         mListViewChat = (ListView)findViewById(R.id.listview_chat);
         mSendPicture = (ImageButton)findViewById(R.id.imageButton_send_pic);
 
-
         // Init ChatDialog list
-        mChatDialogList =  new ArrayList<>();
-
+        mChatDialogList =  new ArrayList<ChatMessage>();
         mChatAdapter = new ChatAdapter(this,mChatDialogList);
+
+
         mListViewChat.setAdapter(mChatAdapter);
 
         // update address in adapter
@@ -746,7 +750,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         BitmapFactory.decodeStream(
                 getContentResolver().openInputStream(selectedImage), null, o);
 
-        final int REQUIRED_SIZE = 100;
+        final int REQUIRED_SIZE = 200;
 
         int width_tmp = o.outWidth, height_tmp = o.outHeight;
         int scale = 1;
@@ -803,4 +807,5 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         mConnectedGender = gender; // set connected gender
         mConnectedName = srtingArray[2];
     }
+
 }

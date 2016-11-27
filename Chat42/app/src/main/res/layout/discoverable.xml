@@ -20,7 +20,7 @@
         android:textColor="@android:color/background_light" />
 
     <Switch
-        android:text="Switch"
+        android:text=""
         android:layout_width="89dp"
         android:layout_height="29dp"
         android:id="@+id/switch_discoverable"

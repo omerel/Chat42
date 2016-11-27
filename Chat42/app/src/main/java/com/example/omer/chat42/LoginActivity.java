@@ -303,7 +303,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         BitmapFactory.decodeStream(
                 getContentResolver().openInputStream(selectedImage), null, o);
 
-        final int REQUIRED_SIZE = 100;
+        final int REQUIRED_SIZE = 200;
 
         int width_tmp = o.outWidth, height_tmp = o.outHeight;
         int scale = 1;
@@ -318,8 +318,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
 
         BitmapFactory.Options o2 = new BitmapFactory.Options();
         o2.inSampleSize = scale;
-        return BitmapFactory.decodeStream(
-                getContentResolver().openInputStream(selectedImage), null, o2);
+        return BitmapFactory.decodeStream(getContentResolver().openInputStream(selectedImage), null, o2);
     }
 
 }

@@ -11,6 +11,8 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -28,6 +30,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.Toast;
 import com.example.omer.chat42.BluetoothService.MyBinder;
@@ -39,9 +42,10 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener,Constants {
 
     // Views
-    private  View mDiscoverableLayout;
+    private View mDiscoverableLayout;
     private static Switch mDiscoverable;
-    private  ListView mDevicesList;
+    private ListView mDevicesList;
+    private ProgressBar mProgressBar;
 
     // Member fields
     private ArrayList<BluetoothDevice> mArrayDevices;
@@ -243,6 +247,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button mSearchButton = (Button) findViewById(R.id.button_search);
         mDiscoverable = (Switch)findViewById(R.id.switch_discoverable);
         mDevicesList = (ListView)findViewById(R.id.listview_available_devices);
+        mProgressBar = (ProgressBar)findViewById(R.id.progressBarSearch);
+
+
+        mProgressBar.setVisibility(View.INVISIBLE);
 
         // bind device list
         mArrayDevices = new ArrayList<>();
@@ -318,6 +326,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             mArrayAdapter.add(deviceName);
                             mArrayDevices.add(device);
                             mArrayAdapter.notifyDataSetChanged();
+                            mProgressBar.setVisibility(View.INVISIBLE);
                             break;
                         }
 
@@ -375,6 +384,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private boolean checkMatch(String deviceName, String mSearchValue) {
+        if (deviceName == null)
+            return false;
         String[] srtingArray1 = deviceName.split("_");
         String[] srtingArray2 = mSearchValue.split("_");
 
@@ -422,22 +433,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (mBluetoothService.isDiscovering()) {
                 // the button is pressed when it discovers, so cancel the discovery
                 sendRequestToService(CANCEL_DISCOVERY);
+                mProgressBar.setVisibility(View.INVISIBLE);
                 Toast.makeText(getApplicationContext(), "Stop discovering",
-                        Toast.LENGTH_LONG).show();
+                        Toast.LENGTH_SHORT).show();
             } else {
                 mArrayAdapter.clear();  // clear adapter
                 mArrayDevices.clear();  // clear bluetooth array devices
                 sendRequestToService(START_DISCOVERY);
+                mProgressBar.setVisibility(View.VISIBLE);
                 Toast.makeText(getApplicationContext(), "Start discovering",
-                        Toast.LENGTH_LONG).show();
+                        Toast.LENGTH_SHORT).show();
             }
         }
     }
 
+
+    /*
+    if(mProgressBar.getVisibility()==View.VISIBLE)
+                    mProgressBar.setVisibility(View.INVISIBLE);
+                else
+                    mProgressBar.setVisibility(View.VISIBLE);
+     */
+
     public static boolean isDiscoverableSwitchOn(){
         return mDiscoverable.isChecked();
     }
-
 
 
     /**

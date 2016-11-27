@@ -412,13 +412,13 @@ public class BluetoothService extends Service implements Constants {
         }
 
         public void run() {
-            byte[] buffer = new byte[1000];
             int bytes;
+            byte[] buffer = new byte[MAX_CHAR];
 
             // Keep listening to the InputStream while connected
             while (mmSocket.isConnected()) {
                 try {
-                    // Read from the InputStream first message
+                    // Read from the InputStream how many bytes in the the next message
                     bytes = mmInStream.read(buffer);
 
                     // convert buffer to string that say how many bytes in the second msg
@@ -426,10 +426,6 @@ public class BluetoothService extends Service implements Constants {
 
                     // convert message to int
                     int bytesCounter = Integer.valueOf(bytesCounterMsg);
-
-
-                    // TODO fix it
-                    // string with maximum length
 
                     // compare message size to decide if decode it as a simple message or as a picture
                     if (bytesCounter < MAX_CHAR) {
@@ -444,8 +440,6 @@ public class BluetoothService extends Service implements Constants {
                         sendMessageToActivity(readMessage);
                     }
                     else{
-                        // TODO find out why the size is not thw right one
-
                         byte[] pictureBuffer = new byte[bytesCounter+1024];
                         // use byteCounter as a counter
                         int counter = 0 ;
@@ -471,9 +465,9 @@ public class BluetoothService extends Service implements Constants {
             try {
                 // get how many bytes
                 int bytes = buffer.length;
-
                 // send the size of the message
                 mmOutStream.write(String.valueOf(bytes).getBytes());
+                mmOutStream.flush();
 
                 // send the original message
                 mmOutStream.write(buffer);

@@ -55,6 +55,7 @@ public interface Constants {
     // Shared preference
     String SHARED_PREFERENCE = "myData";
 
+    // for Blutooth service
+    int MAX_CHAR = 255;;
 
-    int MAX_CHAR = 255;
 }
