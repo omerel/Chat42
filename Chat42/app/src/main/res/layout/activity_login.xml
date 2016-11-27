@@ -64,20 +64,6 @@
         android:textColor="@android:color/background_light" />
 
     <TextView
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:text=" Just fot fun"
-        android:textSize="24dp"
-        android:textStyle="normal|bold"
-        android:id="@+id/textView_list_interest"
-        android:layout_alignBaseline="@+id/textView_interest"
-        android:layout_alignBottom="@+id/textView_interest"
-        android:textColor="@android:color/background_dark"
-        android:layout_toEndOf="@+id/textView_user_name"
-        android:textAlignment="center"
-        android:background="@android:color/holo_orange_light" />
-
-    <TextView
         android:text="@string/interest_in"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -194,5 +180,20 @@
         android:textSize="30dp"
         android:layout_below="@id/imageView_logo"
         android:layout_centerHorizontal="true" />
+
+    <TextView
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text=" Just fot fun"
+        android:textSize="24dp"
+        android:textStyle="normal|bold"
+        android:id="@+id/textView_list_interest"
+        android:textColor="@android:color/background_dark"
+        android:textAlignment="center"
+        android:background="@android:color/holo_orange_light"
+        android:layout_alignBaseline="@+id/textView_interest"
+        android:layout_alignBottom="@+id/textView_interest"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="10dp" />
 
 </RelativeLayout>

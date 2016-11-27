@@ -75,7 +75,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         showInterestIn(false);
 
         // Set interest options
-        mArrayInterest = new String[] {"'Cos I'm boring","Search for ride","Flirt in a bar" };
+        mArrayInterest = new String[] {"Just for fun","Share a taxi","Flirt in a bar" };
 
         // Set radioOptions
         mCheckBoxGenderMale.setChecked(true);
