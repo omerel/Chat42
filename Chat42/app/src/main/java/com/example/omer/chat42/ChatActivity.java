@@ -171,6 +171,12 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         Delay start = new Delay(this);
         start.execute();
 
+        // Close discoverability
+        Intent discoverableIntent = new
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
+        startActivity(discoverableIntent);
+
     }
 
 
@@ -793,8 +799,12 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
             // update connected device with your profile picture
             if (mProfilePicture!= null)
                 sendPictureToService(mProfilePicture);
-            else
-                sendPictureToService(BitmapFactory.decodeResource(getResources(),R.drawable.bluetooth_logo));
+            else{
+                if (mGender == MALE)
+                    sendPictureToService(BitmapFactory.decodeResource(getResources(),R.drawable.boy_pic));
+                else
+                    sendPictureToService(BitmapFactory.decodeResource(getResources(),R.drawable.girl_pic));
+            }
             this.cancel(true);
         }
     }

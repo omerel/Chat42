@@ -297,6 +297,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mIntentFilter.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         mIntentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+
         registerReceiver(mReceiver,mIntentFilter);
 
         // Set name for user
@@ -318,6 +319,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 switch (action){
                     // When discovery finds a device
                     case BluetoothDevice.ACTION_FOUND:
+
                         // Get the BluetoothDevice object from the Intent
                         BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                         // Add devices that match user search array adapter to show in a ListView
@@ -326,10 +328,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             mArrayAdapter.add(deviceName);
                             mArrayDevices.add(device);
                             mArrayAdapter.notifyDataSetChanged();
-                            mProgressBar.setVisibility(View.INVISIBLE);
                             break;
                         }
 
+                    // When discovery started
+                    case BluetoothAdapter.ACTION_DISCOVERY_STARTED:
+                        mProgressBar.setVisibility(View.VISIBLE);
+                        break;
+
+                    // When discovery finished
+                    case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:
+                        mProgressBar.setVisibility(View.INVISIBLE);
+                        Toast.makeText(getApplicationContext(), "Discovering finished",
+                                Toast.LENGTH_SHORT).show();
+                        break;
 
                     // When bluetooth state changed
                     case BluetoothAdapter.ACTION_STATE_CHANGED:
@@ -373,6 +385,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     case BluetoothDevice.ACTION_ACL_CONNECTED:
                         Toast.makeText(getApplicationContext(),"CONNECTED",
                                 Toast.LENGTH_LONG).show();
+                        mDiscoverable.setChecked(false);
+
                         break;
                     case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                         Toast.makeText(getApplicationContext(),"DISCONNECTED",
@@ -433,27 +447,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (mBluetoothService.isDiscovering()) {
                 // the button is pressed when it discovers, so cancel the discovery
                 sendRequestToService(CANCEL_DISCOVERY);
-                mProgressBar.setVisibility(View.INVISIBLE);
-                Toast.makeText(getApplicationContext(), "Stop discovering",
-                        Toast.LENGTH_SHORT).show();
             } else {
                 mArrayAdapter.clear();  // clear adapter
                 mArrayDevices.clear();  // clear bluetooth array devices
                 sendRequestToService(START_DISCOVERY);
-                mProgressBar.setVisibility(View.VISIBLE);
-                Toast.makeText(getApplicationContext(), "Start discovering",
+                Toast.makeText(getApplicationContext(), "Start discovering for 12 second",
                         Toast.LENGTH_SHORT).show();
             }
         }
     }
 
-
-    /*
-    if(mProgressBar.getVisibility()==View.VISIBLE)
-                    mProgressBar.setVisibility(View.INVISIBLE);
-                else
-                    mProgressBar.setVisibility(View.VISIBLE);
-     */
 
     public static boolean isDiscoverableSwitchOn(){
         return mDiscoverable.isChecked();

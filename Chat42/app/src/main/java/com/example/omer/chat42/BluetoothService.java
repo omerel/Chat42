@@ -164,7 +164,8 @@ public class BluetoothService extends Service implements Constants {
             BluetoothServerSocket tmp = null;
             try {
                 // MY_UUID is the app's UUID string, also used by the client code
-                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord("RELAY", MY_UUID);
+               //TODO I change it tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord("RELAY", MY_UUID);
+                tmp = mBluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord("RELAY", MY_UUID);
             } catch (IOException e) {
             }
             mmServerSocket = tmp;
