@@ -34,7 +34,11 @@ import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.Toast;
 import com.example.omer.chat42.BluetoothService.MyBinder;
+
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+
+import okhttp3.internal.Util;
 
 /**
  * This activity does all the work of setting up UI and connecting to other user
@@ -339,8 +343,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     // When discovery finished
                     case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:
                         mProgressBar.setVisibility(View.INVISIBLE);
-                        Toast.makeText(getApplicationContext(), "Discovering finished",
-                                Toast.LENGTH_SHORT).show();
+                       // Toast.makeText(getApplicationContext(), "Discovering finished",
+                         //       Toast.LENGTH_SHORT).show();
                         break;
 
                     // When bluetooth state changed
@@ -451,8 +455,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mArrayAdapter.clear();  // clear adapter
                 mArrayDevices.clear();  // clear bluetooth array devices
                 sendRequestToService(START_DISCOVERY);
-                Toast.makeText(getApplicationContext(), "Start discovering for 12 second",
-                        Toast.LENGTH_SHORT).show();
+               // Toast.makeText(getApplicationContext(), "Start discovering for 12 second",
+                 //       Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -474,21 +478,32 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 // TODO - delete it when using API above 19
                 Intent discoverableIntent = new
                         Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
+                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_STOP);
                 startActivity(discoverableIntent);
 
             } else {
 
                 if (mBluetoothService.isEnabled())
                     enableBluetooth();
+
                 Intent discoverableIntent = new
                         Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-                startActivity(discoverableIntent);
+                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION);
+                startActivityForResult(discoverableIntent,DISCOVERABLE_BT_REQUEST_CODE);
+
+/*
+                Intent i = new Intent();
+                i.setAction(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+                startActivity(i);
+                startActivityForResult(i,44);
+*/
+
+                //
                 sendRequestToService(START_DISCOVERABLE);
             }
         }
     }
+
     /**
      * Turnoff Discoverable Button
      */
@@ -617,5 +632,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             e.printStackTrace();
         }
 
+    }
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+        if (requestCode == ENABLE_BT_REQUEST_CODE) {
+            // other code
+        } else if (requestCode == DISCOVERABLE_BT_REQUEST_CODE){
+
+            if (resultCode == DISCOVERABLE_DURATION){
+                Toast.makeText(getApplicationContext(), "Your device is now discoverable by other devices for " +
+                                DISCOVERABLE_DURATION + " seconds",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getApplicationContext(), "Fail to enable discoverability on your device.",
+                        Toast.LENGTH_SHORT).show();
+                mDiscoverable.setChecked(false);
+            }
+        }
     }
 }

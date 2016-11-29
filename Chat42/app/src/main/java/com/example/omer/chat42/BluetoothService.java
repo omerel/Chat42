@@ -14,7 +14,9 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.text.TextUtils;
 import android.util.Base64;
+import android.util.Log;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -24,6 +26,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.SplittableRandom;
+
+import okhttp3.internal.Util;
 
 /**
  * Created by omer on 12/11/2016.
@@ -318,7 +322,8 @@ public class BluetoothService extends Service implements Constants {
                     break;
                 case MESSAGE_WRITE:
                     String content = msg.getData().getString("string");
-                    mConversationThread.write(content.getBytes());
+                    // the " " is for case a user send only number digit(see read() method)
+                    mConversationThread.write((" "+content).getBytes());
                 break;
                 case PICTURE_WRITE:
                     byte[] picContent = msg.getData().getByteArray("picture");
@@ -425,9 +430,35 @@ public class BluetoothService extends Service implements Constants {
                     // convert buffer to string that say how many bytes in the second msg
                     String bytesCounterMsg = new String(buffer, 0, bytes);
 
-                    // convert message to int
-                    int bytesCounter = Integer.valueOf(bytesCounterMsg);
 
+                    // check if the message contains only number
+                   // boolean isNumber = bytesCounterMsg.matches("d+");
+
+                    boolean digitsOnly = TextUtils.isDigitsOnly(bytesCounterMsg);
+
+                    // if contain numbers' its a picture
+                    if (digitsOnly){
+                        int bytesCounter =  Integer.valueOf(bytesCounterMsg);
+
+                        byte[] pictureBuffer = new byte[bytesCounter+1024];
+                        // use byteCounter as a counter
+                        int counter = 0 ;
+                        int bufferSize  = 1024;
+                        while(bytesCounter != counter){
+                            counter+= mmInStream.read(pictureBuffer,counter,bufferSize);
+                        }
+                        sendPictureToActivity(pictureBuffer);
+                    }
+                    else{
+                        // if not its a message
+
+                        // construct a string from the valid bytes in the buffer
+                        String readMessage = new String(buffer, 0, bytes);
+                        // Send the obtained bytes to the UI Activity
+                        sendMessageToActivity(readMessage);
+                    }
+
+/*
                     // compare message size to decide if decode it as a simple message or as a picture
                     if (bytesCounter < MAX_CHAR) {
 
@@ -450,7 +481,7 @@ public class BluetoothService extends Service implements Constants {
                         }
                         sendPictureToActivity(pictureBuffer);
                     }
-
+*/
                 } catch (IOException e) {
                     break;
                 }
@@ -464,14 +495,25 @@ public class BluetoothService extends Service implements Constants {
          */
         public void write(byte[] buffer) {
             try {
+
                 // get how many bytes
                 int bytes = buffer.length;
-                // send the size of the message
-                mmOutStream.write(String.valueOf(bytes).getBytes());
-                mmOutStream.flush();
 
-                // send the original message
-                mmOutStream.write(buffer);
+                // If it a text message
+                if (bytes < MAX_CHAR){
+                    // send the original message
+                    mmOutStream.write(buffer);
+                }
+                // if its a picture
+                else{
+                    // send the size of the picture
+                    mmOutStream.write(String.valueOf(bytes).getBytes());
+                    mmOutStream.flush();
+                    // send the original picture
+                    mmOutStream.write(buffer);
+                }
+
+
 
 
             } catch (IOException e) {

@@ -2,8 +2,13 @@ package com.example.omer.chat42;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Bundle;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,11 +33,13 @@ public class ChatAdapter extends BaseAdapter implements Constants {
     private Activity context;
     private final List<ChatMessage> chatMessages;
     private String deviceAddress;
+    private Messenger mMessenger;
 
 
-    public ChatAdapter(Activity context, List<ChatMessage> chatMessagesHistory){
+    public ChatAdapter(Activity context, List<ChatMessage> chatMessagesHistory, Messenger messenger){
         this.context = context;
         this.chatMessages = chatMessagesHistory;
+        this.mMessenger = messenger;
     }
 
     @Override
@@ -61,7 +68,7 @@ public class ChatAdapter extends BaseAdapter implements Constants {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
-        ChatMessage chatMessage = getItem(position);
+        final ChatMessage chatMessage = getItem(position);
         LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
         if (convertView == null) {
@@ -81,6 +88,23 @@ public class ChatAdapter extends BaseAdapter implements Constants {
         if (chatMessage.getPicture() != null){
             holder.picture.setImageBitmap(chatMessage.getPicture());
             holder.picture.setVisibility(View.VISIBLE);
+            holder.picture.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+
+                    // Send the picture to the activity
+                    Bundle bundle = new Bundle();
+                    bundle.putParcelable("picture",chatMessage.getPicture());
+                    Message msg = Message.obtain(null, OPEN_PICTURE);
+                    msg.setData(bundle);
+                    try {
+                        mMessenger.send(msg);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+
         }
         else{
             holder.picture.setVisibility(View.GONE);

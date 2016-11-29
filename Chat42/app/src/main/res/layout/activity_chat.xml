@@ -52,7 +52,7 @@
         android:layout_height="wrap_content"
         android:inputType="text"
         android:hint="Write here your Message"
-        android:maxLength="255"
+        android:maxLength="200"
         android:ems="10"
         android:layout_alignLeft="@id/imageButton_send_pic"
         android:layout_alignParentBottom="true"

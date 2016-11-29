@@ -24,12 +24,19 @@ public interface Constants {
     int CONNECTING_SUCCEEDS =17;
     int CLOSE_SOCKET = 18;
 
+    // ChatMessage types communication between chatAdapter to Chatactivity
+    int OPEN_PICTURE= 19;
+
     // Constants that indicate the current mode
     int WIFI_MODE = 21;
     int BLUETOOTH_MODE = 22;
 
     // request to enable bluetooth
     int REQUEST_ENABLE_BT = 23;
+    int ENABLE_BT_REQUEST_CODE = 1;
+    int DISCOVERABLE_BT_REQUEST_CODE = 2;
+    int DISCOVERABLE_DURATION = 120;
+    int DISCOVERABLE_DURATION_STOP = 1;
 
     // Unique UUID for this application
     UUID MY_UUID = UUID.fromString("ca87c0d0-afac-11de-8a39-0800200c9a66");

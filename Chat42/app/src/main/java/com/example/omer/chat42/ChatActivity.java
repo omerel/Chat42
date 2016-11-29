@@ -1,5 +1,6 @@
 package com.example.omer.chat42;
 
+import android.app.Dialog;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -28,6 +29,7 @@ import android.os.RemoteException;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.app.NotificationCompat;
+import android.support.v7.widget.DialogTitle;
 import android.support.v7.widget.Toolbar;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -94,6 +96,12 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         startService(intent);
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
 
+        // set off discoverability
+        Intent discoverableIntent = new
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_STOP);
+        startActivity(discoverableIntent);
+
     }
 
     @Override
@@ -104,6 +112,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     public void onResume() {
         super.onResume();
         mIsInFront = true;
+
     }
 
     @Override
@@ -135,7 +144,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
         // Init ChatDialog list
         mChatDialogList =  new ArrayList<ChatMessage>();
-        mChatAdapter = new ChatAdapter(this,mChatDialogList);
+        mChatAdapter = new ChatAdapter(this,mChatDialogList,mMessenger);
 
 
         mListViewChat.setAdapter(mChatAdapter);
@@ -170,13 +179,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         // wait 1 second and the send profile picture (because handler not ready yet)
         Delay start = new Delay(this);
         start.execute();
-
-        // Close discoverability
-        Intent discoverableIntent = new
-                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
-        startActivity(discoverableIntent);
-
     }
 
 
@@ -286,6 +288,9 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
         MenuItem menuIconMode = menu.findItem(R.id.action_mode_logo);
         menuIconMode.setIcon(R.drawable.bluetooth_connected);
 
+        // hide setting
+       menu.findItem(R.id.action_settings).setVisible(false);
+
         if (mConnectedGender == MALE)
             menu.findItem(R.id.action_profile).setIcon(R.drawable.boy);
         else
@@ -317,7 +322,6 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
 
             case R.id.action_settings:
                 //TODO
-                goToSettingActivity();
                 return true;
 
             // Clear chat history
@@ -459,6 +463,7 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     private void goToSettingActivity() {
         Intent goToSettingActivity = new Intent(this,SettingActivity.class);
         goToSettingActivity.putExtra("ACTIVITY","chat");
+       // goToSettingActivity.putExtra("PICTURE",pic);
         startActivity(goToSettingActivity);
     }
 
@@ -512,12 +517,30 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
                         notifyMessageArrived("Picture arrived");
                     }
                     break;
+
+                case OPEN_PICTURE:
+                    Bitmap profilePic = msg.getData().getParcelable("picture");
+                    openPicture(profilePic);
+                    break;
                 default:
                     super.handleMessage(msg);
             }
         }
     }
 
+
+    public void openPicture(Bitmap pic){
+
+        // TODO
+        AlertDialog.Builder builderType = new AlertDialog.Builder(this);
+        LayoutInflater factory = LayoutInflater.from(this);
+        final View view = factory.inflate(R.layout.profile_picture,null);
+        ImageView im = (ImageView)view.findViewById(R.id.imageButtonProfile);
+        im.setImageBitmap(pic);
+        builderType.setView(view);
+        builderType.show();
+
+    }
     /**
      * Send string ChatMessage value to service
      */
