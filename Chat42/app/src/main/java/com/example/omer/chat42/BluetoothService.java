@@ -272,23 +272,6 @@ public class BluetoothService extends Service implements Constants {
         }
     }
 
-/*
-    private final Handler mHandler = new Handler() {
-        @Override
-        public void handleMessage(ChatMessage msg) {
-            switch (msg.what) {
-                case CONNECTING_SUCCEEDS:
-                    sendRequestToActivity(CONNECTING_SUCCEEDS);
-                   break;
-                case CONNECTING_FAILURE:
-                    sendRequestToActivity(CONNECTING_FAILURE);
-                    break;
-
-            }
-
-        }
-    };
-*/
     /**
      * Handler of incoming messages from activity
      */
@@ -458,30 +441,6 @@ public class BluetoothService extends Service implements Constants {
                         sendMessageToActivity(readMessage);
                     }
 
-/*
-                    // compare message size to decide if decode it as a simple message or as a picture
-                    if (bytesCounter < MAX_CHAR) {
-
-                        // Read the original message
-                        bytes = mmInStream.read(buffer);
-                        byte[] readBuf = buffer;
-
-                        // construct a string from the valid bytes in the buffer
-                        String readMessage = new String(readBuf, 0, bytes);
-                        // Send the obtained bytes to the UI Activity
-                        sendMessageToActivity(readMessage);
-                    }
-                    else{
-                        byte[] pictureBuffer = new byte[bytesCounter+1024];
-                        // use byteCounter as a counter
-                        int counter = 0 ;
-                        int bufferSize  = 1024;
-                        while(bytesCounter != counter){
-                            counter+= mmInStream.read(pictureBuffer,counter,bufferSize);
-                        }
-                        sendPictureToActivity(pictureBuffer);
-                    }
-*/
                 } catch (IOException e) {
                     break;
                 }
@@ -512,8 +471,6 @@ public class BluetoothService extends Service implements Constants {
                     // send the original picture
                     mmOutStream.write(buffer);
                 }
-
-
 
 
             } catch (IOException e) {

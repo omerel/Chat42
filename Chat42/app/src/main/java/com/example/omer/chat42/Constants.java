@@ -53,8 +53,6 @@ public interface Constants {
     // Login const
     int MALE = 1;
     int FEMALE = 2;
-    int INMALE = 3;
-    int INFEMALE = 4;
     int STANDART = 5;
     int RIDE = 6;
     int BAR = 7;

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+
     package="com.example.omer.chat42">
     <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
-
-
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
     <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
     <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
@@ -25,7 +25,6 @@
         <activity
             android:name=".MainActivity"
             android:screenOrientation="portrait">
-
         </activity>
         <activity
             android:name=".ChatActivity"
@@ -36,6 +35,8 @@
             android:screenOrientation="portrait"/>
         <activity android:name=".ChatHistoryUserListActivity"
             android:screenOrientation="portrait"/>
+
+
 
     </application>
 

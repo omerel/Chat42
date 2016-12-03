@@ -40,7 +40,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     private String mUserName;
     private int mIsMale = MALE;
     private int mChatType = STANDART;
-    private int mInterestIn = INFEMALE;
+    private int mInterestIn = FEMALE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

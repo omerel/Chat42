@@ -50,6 +50,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static Switch mDiscoverable;
     private ListView mDevicesList;
     private ProgressBar mProgressBar;
+    private Button mSearchButton;
 
     // Member fields
     private ArrayList<BluetoothDevice> mArrayDevices;
@@ -117,7 +118,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             // register Messenger in the service
             registerToServiceMessenger();
         }
-
     };
 
     @Override
@@ -211,7 +211,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         menuIconMode.setIcon(R.drawable.bluetooth_signal);
 
         menu.findItem(R.id.action_profile).setVisible(false);
+
+        // history option will be in the future
         menu.findItem(R.id.action_chat_history).setTitle("Chat history");
+        menu.findItem(R.id.action_chat_history).setVisible(false);
+        menu.findItem(R.id.action_settings).setVisible(false);
 
         return super.onCreateOptionsMenu(menu);
     }
@@ -222,7 +226,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mUserName = sharedPref.getString("NAME","user");
         mChatType = sharedPref.getInt("CHAT_TYPE",STANDART);
         mGender = sharedPref.getInt("GENDER",MALE);
-        mInterestIn = sharedPref.getInt("GENDER_INTEREST",INFEMALE);
+        mInterestIn = sharedPref.getInt("GENDER_INTEREST",FEMALE);
 
         // calculate search value
         mSearchValue = "chat42_"+String.valueOf(mChatType)+
@@ -238,7 +242,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void generalInit() {
 
-
         loadSharedPreferences();
 
         // setup toolbar
@@ -248,7 +251,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // Bind layout's view to class
         mDiscoverableLayout = (View)findViewById(R.id.layout_discoverable);
-        Button mSearchButton = (Button) findViewById(R.id.button_search);
+        mSearchButton = (Button) findViewById(R.id.button_search);
         mDiscoverable = (Switch)findViewById(R.id.switch_discoverable);
         mDevicesList = (ListView)findViewById(R.id.listview_available_devices);
         mProgressBar = (ProgressBar)findViewById(R.id.progressBarSearch);
@@ -321,6 +324,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String action = intent.getAction();
 
                 switch (action){
+
                     // When discovery finds a device
                     case BluetoothDevice.ACTION_FOUND:
 
@@ -418,7 +422,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (mChatType == chatType) {
                 if (chatType != BAR)
                     return true;
-                if (mGender == gender && mInterestIn == interestIn)
+                if (mGender ==  interestIn && mInterestIn == gender)
                     return true;
             }
         }
@@ -466,7 +470,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return mDiscoverable.isChecked();
     }
 
-
     /**
      *  Make the device be
      */
@@ -490,14 +493,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
                 discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION);
                 startActivityForResult(discoverableIntent,DISCOVERABLE_BT_REQUEST_CODE);
-
-/*
-                Intent i = new Intent();
-                i.setAction(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-                startActivity(i);
-                startActivityForResult(i,44);
-*/
-
                 //
                 sendRequestToService(START_DISCOVERABLE);
             }
