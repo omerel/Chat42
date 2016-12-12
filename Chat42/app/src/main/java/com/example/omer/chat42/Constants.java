@@ -44,7 +44,7 @@ public interface Constants {
 
     // DataBase name
     String DATABASE_NAME = "chat42.db";
-    String TIME_TEMPLATE = "DD/MM/yyyy  hh:mm:ss";
+    String TIME_TEMPLATE = " hh:mm ";
 
     // Code intents
     int CAMERA = 30;

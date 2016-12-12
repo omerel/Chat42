@@ -718,10 +718,16 @@ public class ChatActivity extends AppCompatActivity  implements View.OnClickList
     }
 
     public void getPictureFromGallery(){
+
+        Intent galleryIntent = new Intent(Intent.ACTION_PICK,
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(galleryIntent, GALLERY);
+        /*
         Intent intent = new Intent();
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
         startActivityForResult(Intent.createChooser(intent,"Select Picture"),GALLERY);
+        */
     }
 
     // get result - picture from gallery

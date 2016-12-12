@@ -39,14 +39,6 @@
         android:id="@+id/imageButton_send_msg"
         android:contentDescription="" />
 
-    <ImageButton
-        android:layout_width="40dp"
-        android:layout_height="wrap_content"
-        app:srcCompat="@android:drawable/stat_sys_upload_done"
-        android:id="@+id/imageButton_send_pic"
-        android:layout_alignParentBottom="true"
-        android:layout_toStartOf="@+id/imageButton_send_msg"
-        android:layout_below="@+id/listview_chat" />
     <EditText
         android:layout_width="270dp"
         android:layout_height="wrap_content"
@@ -54,9 +46,17 @@
         android:hint="Write here your Message"
         android:maxLength="200"
         android:ems="10"
-        android:layout_alignLeft="@id/imageButton_send_pic"
+        android:id="@+id/editText_command_chat"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:id="@+id/editText_command_chat" />
+        android:layout_toEndOf="@+id/imageButton_send_pic" />
+
+    <ImageButton
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/imageButton_send_pic"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:background="@android:drawable/ic_menu_gallery"
+        android:layout_alignTop="@+id/editText_command_chat" />
 
 </RelativeLayout>

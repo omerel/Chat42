@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     /**
      *  Create bounding between service class to this activity
      */
-    private ServiceConnection mServiceConnection = new ServiceConnection() {
+private ServiceConnection mServiceConnection = new ServiceConnection() {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
